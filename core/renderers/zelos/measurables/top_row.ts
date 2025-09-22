@@ -4,18 +4,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * An object representing the top row of a rendered block.
- *
- * @class
- */
-import * as goog from '../../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.zelos.TopRow');
+// Former goog.module ID: Blockly.zelos.TopRow
 
 import type {BlockSvg} from '../../../block_svg.js';
 import type {ConstantProvider} from '../../../renderers/common/constants.js';
 import {TopRow as BaseTopRow} from '../../../renderers/measurables/top_row.js';
-
 
 /**
  * An object containing information about what elements are in the top row of a
@@ -24,13 +17,10 @@ import {TopRow as BaseTopRow} from '../../../renderers/measurables/top_row.js';
  * connections.
  * After this constructor is called, the row will contain all non-spacer
  * elements it needs.
- *
- * @alias Blockly.zelos.TopRow
  */
 export class TopRow extends BaseTopRow {
   /**
    * @param constants The rendering constants provider.
-   * @internal
    */
   constructor(constants: ConstantProvider) {
     super(constants);
@@ -43,14 +33,18 @@ export class TopRow extends BaseTopRow {
   /** Render a round corner unless the block has an output connection. */
   override hasLeftSquareCorner(block: BlockSvg) {
     const hasHat =
-        (block.hat ? block.hat === 'cap' : this.constants_.ADD_START_HATS) &&
-        !block.outputConnection && !block.previousConnection;
+      (block.hat ? block.hat === 'cap' : this.constants_.ADD_START_HATS) &&
+      !block.outputConnection &&
+      !block.previousConnection;
     return !!block.outputConnection || hasHat;
   }
 
   /** Render a round corner unless the block has an output connection. */
   override hasRightSquareCorner(block: BlockSvg) {
-    return !!block.outputConnection && !block.statementInputCount &&
-        !block.nextConnection;
+    return (
+      !!block.outputConnection &&
+      !block.statementInputCount &&
+      !block.nextConnection
+    );
   }
 }

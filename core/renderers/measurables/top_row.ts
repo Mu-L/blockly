@@ -4,22 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Object representing a top row on a rendered block.
- *
- * @class
- */
-import * as goog from '../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.blockRendering.TopRow');
+// Former goog.module ID: Blockly.blockRendering.TopRow
 
 import type {BlockSvg} from '../../block_svg.js';
 import type {ConstantProvider} from '../common/constants.js';
-
-import {Hat} from './hat.js';
 import type {PreviousConnection} from './previous_connection.js';
 import {Row} from './row.js';
 import {Types} from './types.js';
-
 
 /**
  * An object containing information about what elements are in the top row of a
@@ -28,16 +19,12 @@ import {Types} from './types.js';
  * connections.
  * After this constructor is called, the row will contain all non-spacer
  * elements it needs.
- *
- * @alias Blockly.blockRendering.TopRow
  */
 export class TopRow extends Row {
   /**
    * The starting point for drawing the row, in the y direction.
    * This allows us to draw hats and similar shapes that don't start at the
    * origin. Must be non-negative (see #2820).
-   *
-   * @internal
    */
   capline = 0;
 
@@ -48,11 +35,10 @@ export class TopRow extends Row {
   hasPreviousConnection = false;
 
   /** The previous connection on the block, if any. */
-  connection: PreviousConnection|null = null;
+  connection: PreviousConnection | null = null;
 
   /**
    * @param constants The rendering constants provider.
-   * @internal
    */
   constructor(constants: ConstantProvider) {
     super(constants);
@@ -65,16 +51,19 @@ export class TopRow extends Row {
    *
    * @param block The block whose top row this represents.
    * @returns Whether or not the top row has a left square corner.
-   * @internal
    */
   hasLeftSquareCorner(block: BlockSvg): boolean {
     const hasHat =
-        (block.hat ? block.hat === 'cap' : this.constants_.ADD_START_HATS) &&
-        !block.outputConnection && !block.previousConnection;
+      (block.hat ? block.hat === 'cap' : this.constants_.ADD_START_HATS) &&
+      !block.outputConnection &&
+      !block.previousConnection;
     const prevBlock = block.getPreviousBlock();
 
-    return !!block.outputConnection || hasHat ||
-        (prevBlock ? prevBlock.getNextBlock() === block : false);
+    return (
+      !!block.outputConnection ||
+      hasHat ||
+      (prevBlock ? prevBlock.getNextBlock() === block : false)
+    );
   }
 
   /**
@@ -95,7 +84,7 @@ export class TopRow extends Row {
       const elem = this.elements[i];
       width += elem.width;
       if (!Types.isSpacer(elem)) {
-        if (Types.isHat(elem) && elem instanceof Hat) {
+        if (Types.isHat(elem)) {
           ascenderHeight = Math.max(ascenderHeight, elem.ascenderHeight);
         } else {
           height = Math.max(height, elem.height);

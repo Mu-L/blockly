@@ -11,8 +11,7 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Field');
+// Former goog.module ID: Blockly.Field
 
 // Unused import preserved for side-effects. Remove if unneeded.
 import './events/events_block_change.js';
@@ -21,39 +20,64 @@ import type {Block} from './block.js';
 import type {BlockSvg} from './block_svg.js';
 import * as browserEvents from './browser_events.js';
 import * as dropDownDiv from './dropdowndiv.js';
+import {EventType} from './events/type.js';
 import * as eventUtils from './events/utils.js';
-import type {Input} from './input.js';
-import type {IASTNodeLocationSvg} from './interfaces/i_ast_node_location_svg.js';
-import type {IASTNodeLocationWithBlock} from './interfaces/i_ast_node_location_with_block.js';
+import type {Input} from './inputs/input.js';
+import type {IFocusableNode} from './interfaces/i_focusable_node.js';
+import type {IFocusableTree} from './interfaces/i_focusable_tree.js';
 import type {IKeyboardAccessible} from './interfaces/i_keyboard_accessible.js';
 import type {IRegistrable} from './interfaces/i_registrable.js';
-import {MarkerManager} from './marker_manager.js';
+import {ISerializable} from './interfaces/i_serializable.js';
 import type {ConstantProvider} from './renderers/common/constants.js';
 import type {KeyboardShortcut} from './shortcut_registry.js';
 import * as Tooltip from './tooltip.js';
 import type {Coordinate} from './utils/coordinate.js';
 import * as dom from './utils/dom.js';
+import * as idGenerator from './utils/idgenerator.js';
 import * as parsing from './utils/parsing.js';
 import {Rect} from './utils/rect.js';
-import {Sentinel} from './utils/sentinel.js';
 import {Size} from './utils/size.js';
 import * as style from './utils/style.js';
 import {Svg} from './utils/svg.js';
 import * as userAgent from './utils/useragent.js';
 import * as utilsXml from './utils/xml.js';
 import * as WidgetDiv from './widgetdiv.js';
-import type {WorkspaceSvg} from './workspace_svg.js';
-import * as Xml from './xml.js';
+import {WorkspaceSvg} from './workspace_svg.js';
 
+/**
+ * A function that is called to validate changes to the field's value before
+ * they are set.
+ *
+ * @see {@link https://developers.google.com/blockly/guides/create-custom-blocks/fields/validators#return_values}
+ * @param newValue The value to be validated.
+ * @returns One of three instructions for setting the new value: `T`, `null`,
+ * or `undefined`.
+ *
+ * - `T` to set this function's returned value instead of `newValue`.
+ *
+ * - `null` to invoke `doValueInvalid_` and not set a value.
+ *
+ * - `undefined` to set `newValue` as is.
+ */
+export type FieldValidator<T = any> = (newValue: T) => T | null | undefined;
 
 /**
  * Abstract class for an editable field.
  *
- * @alias Blockly.Field
+ * @typeParam T - The value stored on the field.
  */
-export abstract class Field implements IASTNodeLocationSvg,
-                                       IASTNodeLocationWithBlock,
-                                       IKeyboardAccessible, IRegistrable {
+export abstract class Field<T = any>
+  implements IKeyboardAccessible, IRegistrable, ISerializable, IFocusableNode
+{
+  /**
+   * To overwrite the default value which is set in **Field**, directly update
+   * the prototype.
+   *
+   * Example:
+   * `FieldImage.prototype.DEFAULT_VALUE = null;`
+   */
+  DEFAULT_VALUE: T | null = null;
+
   /** Non-breaking space. */
   static readonly NBSP = '\u00A0';
 
@@ -62,54 +86,60 @@ export abstract class Field implements IASTNodeLocationSvg,
    * field's value or run configure_, and should allow a subclass to do that
    * instead.
    */
-  static readonly SKIP_SETUP = new Sentinel();
+  static readonly SKIP_SETUP = Symbol('SKIP_SETUP');
 
   /**
    * Name of field.  Unique within each block.
    * Static labels are usually unnamed.
    */
   name?: string = undefined;
-  protected value_: AnyDuringMigration;
+  protected value_: T | null;
 
   /** Validation function called when user edits an editable field. */
-  protected validator_: Function|null = null;
+  protected validator_: FieldValidator<T> | null = null;
 
   /**
    * Used to cache the field's tooltip value if setTooltip is called when the
    * field is not yet initialized. Is *not* guaranteed to be accurate.
    */
-  private tooltip_: Tooltip.TipInfo|null = null;
-  protected size_: Size;
+  private tooltip: Tooltip.TipInfo | null = null;
+
+  /** This field's dimensions. */
+  private size: Size = new Size(0, 0);
 
   /**
-   * Holds the cursors svg element when the cursor is attached to the field.
-   * This is null if there is no cursor on the field.
+   * Gets the size of this field. Because getSize() and updateSize() have side
+   * effects, this acts as a shim for subclasses which wish to adjust field
+   * bounds when setting/getting the size without triggering unwanted rendering
+   * or other side effects. Note that subclasses must override *both* get and
+   * set if either is overridden; the implementation may just call directly
+   * through to super, but it must exist per the JS spec.
    */
-  private cursorSvg_: SVGElement|null = null;
+  protected get size_(): Size {
+    return this.size;
+  }
 
-  /**
-   * Holds the markers svg element when the marker is attached to the field.
-   * This is null if there is no marker on the field.
-   */
-  private markerSvg_: SVGElement|null = null;
+  protected set size_(newValue: Size) {
+    this.size = newValue;
+  }
 
   /** The rendered field's SVG group element. */
-  protected fieldGroup_: SVGGElement|null = null;
+  protected fieldGroup_: SVGGElement | null = null;
 
   /** The rendered field's SVG border element. */
-  protected borderRect_: SVGRectElement|null = null;
+  protected borderRect_: SVGRectElement | null = null;
 
   /** The rendered field's SVG text element. */
-  protected textElement_: SVGTextElement|null = null;
+  protected textElement_: SVGTextElement | null = null;
 
   /** The rendered field's text content element. */
-  protected textContent_: Text|null = null;
+  protected textContent_: Text | null = null;
 
   /** Mouse down event listener data. */
-  private mouseDownWrapper_: browserEvents.Data|null = null;
+  private mouseDownWrapper: browserEvents.Data | null = null;
 
   /** Constants associated with the source block's renderer. */
-  protected constants_: ConstantProvider|null = null;
+  protected constants_: ConstantProvider | null = null;
 
   /**
    * Has this field been disposed of?
@@ -122,7 +152,7 @@ export abstract class Field implements IASTNodeLocationSvg,
   maxDisplayLength = 50;
 
   /** Block this field is attached to.  Starts as null, then set in init. */
-  protected sourceBlock_: Block|null = null;
+  protected sourceBlock_: Block | null = null;
 
   /** Does this block need to be re-rendered? */
   protected isDirty_ = true;
@@ -136,21 +166,21 @@ export abstract class Field implements IASTNodeLocationSvg,
   protected enabled_ = true;
 
   /** The element the click handler is bound to. */
-  protected clickTarget_: Element|null = null;
+  protected clickTarget_: Element | null = null;
 
   /**
    * The prefix field.
    *
    * @internal
    */
-  prefixField: string|null = null;
+  prefixField: string | null = null;
 
   /**
    * The suffix field.
    *
    * @internal
    */
-  suffixField: string|null = null;
+  suffixField: string | null = null;
 
   /**
    * Editable fields usually show some sort of UI indicating they are
@@ -165,44 +195,45 @@ export abstract class Field implements IASTNodeLocationSvg,
    */
   SERIALIZABLE = false;
 
-  /** Mouse cursor style when over the hotspot that initiates the editor. */
-  CURSOR = '';
+  /** The unique ID of this field. */
+  private id_: string | null = null;
 
   /**
    * @param value The initial value of the field.
    *     Also accepts Field.SKIP_SETUP if you wish to skip setup (only used by
    * subclasses that want to handle configuration and setting the field value
    * after their own constructors have run).
-   * @param opt_validator  A function that is called to validate changes to the
+   * @param validator  A function that is called to validate changes to the
    *     field's value. Takes in a value & returns a validated value, or null to
    *     abort the change.
-   * @param opt_config A map of options used to configure the field.
+   * @param config A map of options used to configure the field.
    *    Refer to the individual field's documentation for a list of properties
    * this parameter supports.
    */
   constructor(
-      value: AnyDuringMigration, opt_validator?: Function|null,
-      opt_config?: FieldConfig) {
+    value: T | typeof Field.SKIP_SETUP,
+    validator?: FieldValidator<T> | null,
+    config?: FieldConfig,
+  ) {
     /**
      * A generic value possessed by the field.
      * Should generally be non-null, only null when the field is created.
      */
-    this.value_ = ('DEFAULT_VALUE' in (new.target).prototype) ?
-        ((new.target).prototype as AnyDuringMigration).DEFAULT_VALUE :
-        null;
+    this.value_ =
+      'DEFAULT_VALUE' in new.target.prototype
+        ? new.target.prototype.DEFAULT_VALUE
+        : this.DEFAULT_VALUE;
 
     /** The size of the area rendered by the field. */
     this.size_ = new Size(0, 0);
 
-    if (value === Field.SKIP_SETUP) {
-      return;
-    }
-    if (opt_config) {
-      this.configure_(opt_config);
+    if (value === Field.SKIP_SETUP) return;
+    if (config) {
+      this.configure_(config);
     }
     this.setValue(value);
-    if (opt_validator) {
-      this.setValidator(opt_validator);
+    if (validator) {
+      this.setValidator(validator);
     }
   }
 
@@ -231,6 +262,13 @@ export abstract class Field implements IASTNodeLocationSvg,
       throw Error('Field already bound to a block');
     }
     this.sourceBlock_ = block;
+    if (block.id.includes('_field')) {
+      throw new Error(
+        `Field ID indicator is contained in block ID. This may cause ` +
+          `problems with focus: ${block.id}.`,
+      );
+    }
+    this.id_ = `${block.id}_field_${idGenerator.getNextUniqueId()}`;
   }
 
   /**
@@ -238,13 +276,16 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @returns The renderer constant provider.
    */
-  getConstants(): ConstantProvider|null {
-    if (!this.constants_ && this.sourceBlock_ &&
-        !this.sourceBlock_.isDeadOrDying() &&
-        this.sourceBlock_.workspace.rendered) {
+  getConstants(): ConstantProvider | null {
+    if (
+      !this.constants_ &&
+      this.sourceBlock_ &&
+      !this.sourceBlock_.isDeadOrDying() &&
+      this.sourceBlock_.workspace.rendered
+    ) {
       this.constants_ = (this.sourceBlock_.workspace as WorkspaceSvg)
-                            .getRenderer()
-                            .getConstants();
+        .getRenderer()
+        .getConstants();
     }
     return this.constants_;
   }
@@ -255,10 +296,7 @@ export abstract class Field implements IASTNodeLocationSvg,
    * @returns The block containing this field.
    * @throws An error if the source block is not defined.
    */
-  getSourceBlock(): Block {
-    if (!this.sourceBlock_) {
-      throw new Error(`The source block is ${this.sourceBlock_}.`);
-    }
+  getSourceBlock(): Block | null {
     return this.sourceBlock_;
   }
 
@@ -274,7 +312,11 @@ export abstract class Field implements IASTNodeLocationSvg,
       // Field has already been initialized once.
       return;
     }
-    this.fieldGroup_ = dom.createSvgElement(Svg.G, {});
+    const id = this.id_;
+    if (!id) throw new Error('Expected ID to be defined prior to init.');
+    this.fieldGroup_ = dom.createSvgElement(Svg.G, {
+      'id': id,
+    });
     if (!this.isVisible()) {
       this.fieldGroup_.style.display = 'none';
     }
@@ -282,28 +324,42 @@ export abstract class Field implements IASTNodeLocationSvg,
     sourceBlockSvg.getSvgRoot().appendChild(this.fieldGroup_);
     this.initView();
     this.updateEditable();
-    this.setTooltip(this.tooltip_);
+    this.setTooltip(this.tooltip);
     this.bindEvents_();
     this.initModel();
+    this.applyColour();
   }
 
   /**
    * Create the block UI for this field.
-   *
-   * @internal
    */
-  initView() {
+  protected initView() {
     this.createBorderRect_();
     this.createTextElement_();
+    if (this.fieldGroup_) {
+      dom.addClass(this.fieldGroup_, 'blocklyField');
+    }
   }
 
   /**
    * Initializes the model of the field after it has been installed on a block.
    * No-op by default.
+   */
+  initModel() {}
+
+  /**
+   * Defines whether this field should take up the full block or not.
+   *
+   * Be cautious when overriding this function. It may not work as you expect /
+   * intend because the behavior was kind of hacked in. If you are thinking
+   * about overriding this function, post on the forum with your intended
+   * behavior to see if there's another approach.
    *
    * @internal
    */
-  initModel() {}
+  isFullBlockField(): boolean {
+    return !this.borderRect_;
+  }
 
   /**
    * Create a field border rect element. Not to be overridden by subclasses.
@@ -312,16 +368,18 @@ export abstract class Field implements IASTNodeLocationSvg,
    */
   protected createBorderRect_() {
     this.borderRect_ = dom.createSvgElement(
-        Svg.RECT, {
-          'rx': this.getConstants()!.FIELD_BORDER_RECT_RADIUS,
-          'ry': this.getConstants()!.FIELD_BORDER_RECT_RADIUS,
-          'x': 0,
-          'y': 0,
-          'height': this.size_.height,
-          'width': this.size_.width,
-          'class': 'blocklyFieldRect',
-        },
-        this.fieldGroup_);
+      Svg.RECT,
+      {
+        'rx': this.getConstants()!.FIELD_BORDER_RECT_RADIUS,
+        'ry': this.getConstants()!.FIELD_BORDER_RECT_RADIUS,
+        'x': 0,
+        'y': 0,
+        'height': this.size_.height,
+        'width': this.size_.width,
+        'class': 'blocklyFieldRect',
+      },
+      this.fieldGroup_,
+    );
   }
 
   /**
@@ -331,10 +389,12 @@ export abstract class Field implements IASTNodeLocationSvg,
    */
   protected createTextElement_() {
     this.textElement_ = dom.createSvgElement(
-        Svg.TEXT, {
-          'class': 'blocklyText',
-        },
-        this.fieldGroup_);
+      Svg.TEXT,
+      {
+        'class': 'blocklyText blocklyFieldText',
+      },
+      this.fieldGroup_,
+    );
     if (this.getConstants()!.FIELD_TEXT_BASELINE_CENTER) {
       this.textElement_.setAttribute('dominant-baseline', 'central');
     }
@@ -350,8 +410,12 @@ export abstract class Field implements IASTNodeLocationSvg,
     const clickTarget = this.getClickTarget_();
     if (!clickTarget) throw new Error('A click target has not been set.');
     Tooltip.bindMouseEvents(clickTarget);
-    this.mouseDownWrapper_ = browserEvents.conditionalBind(
-        clickTarget, 'mousedown', this, this.onMouseDown_);
+    this.mouseDownWrapper = browserEvents.conditionalBind(
+      clickTarget,
+      'pointerdown',
+      this,
+      this.onMouseDown_,
+    );
   }
 
   /**
@@ -359,10 +423,10 @@ export abstract class Field implements IASTNodeLocationSvg,
    * called by Blockly.Xml.
    *
    * @param fieldElement The element containing info about the field's state.
-   * @internal
    */
   fromXml(fieldElement: Element) {
-    this.setValue(fieldElement.textContent);
+    // Any because gremlins live here. No touchie!
+    this.setValue(fieldElement.textContent as any);
   }
 
   /**
@@ -371,10 +435,10 @@ export abstract class Field implements IASTNodeLocationSvg,
    * @param fieldElement The element to populate with info about the field's
    *     state.
    * @returns The element containing info about the field's state.
-   * @internal
    */
   toXml(fieldElement: Element): Element {
-    fieldElement.textContent = this.getValue();
+    // Any because gremlins live here. No touchie!
+    fieldElement.textContent = this.getValue() as any;
     return fieldElement;
   }
 
@@ -385,8 +449,10 @@ export abstract class Field implements IASTNodeLocationSvg,
    * @param _doFullSerialization If true, this signals to the field that if it
    *     normally just saves a reference to some state (eg variable fields) it
    *     should instead serialize the full state of the thing being referenced.
+   *     See the
+   *     {@link https://developers.devsite.google.com/blockly/guides/create-custom-blocks/fields/customizing-fields/creating#full_serialization_and_backing_data | field serialization docs}
+   *     for more information.
    * @returns JSON serializable state.
-   * @internal
    */
   saveState(_doFullSerialization?: boolean): AnyDuringMigration {
     const legacyState = this.saveLegacyState(Field);
@@ -401,7 +467,6 @@ export abstract class Field implements IASTNodeLocationSvg,
    * called by the serialization system.
    *
    * @param state The state we want to apply to the field.
-   * @internal
    */
   loadState(state: AnyDuringMigration) {
     if (this.loadLegacyState(Field, state)) {
@@ -419,14 +484,18 @@ export abstract class Field implements IASTNodeLocationSvg,
    *     Used to see if `this` has overridden any relevant hooks.
    * @returns The stringified version of the XML state, or null.
    */
-  protected saveLegacyState(callingClass: FieldProto): string|null {
-    if (callingClass.prototype.saveState === this.saveState &&
-        callingClass.prototype.toXml !== this.toXml) {
+  protected saveLegacyState(callingClass: FieldProto): string | null {
+    if (
+      callingClass.prototype.saveState === this.saveState &&
+      callingClass.prototype.toXml !== this.toXml
+    ) {
       const elem = utilsXml.createElement('field');
       elem.setAttribute('name', this.name || '');
-      const text = Xml.domToText(this.toXml(elem));
+      const text = utilsXml.domToText(this.toXml(elem));
       return text.replace(
-          ' xmlns="https://developers.google.com/blockly/xml"', '');
+        ' xmlns="https://developers.google.com/blockly/xml"',
+        '',
+      );
     }
     // Either they called this on purpose from their saveState, or they have
     // no implementations of either hook. Just do our thing.
@@ -442,11 +511,15 @@ export abstract class Field implements IASTNodeLocationSvg,
    * @param state The state to apply to the field.
    * @returns Whether the state was applied or not.
    */
-  loadLegacyState(callingClass: FieldProto, state: AnyDuringMigration):
-      boolean {
-    if (callingClass.prototype.loadState === this.loadState &&
-        callingClass.prototype.fromXml !== this.fromXml) {
-      this.fromXml(Xml.textToDom(state as string));
+  loadLegacyState(
+    callingClass: FieldProto,
+    state: AnyDuringMigration,
+  ): boolean {
+    if (
+      callingClass.prototype.loadState === this.loadState &&
+      callingClass.prototype.fromXml !== this.fromXml
+    ) {
+      this.fromXml(utilsXml.textToDom(state as string));
       return true;
     }
     // Either they called this on purpose from their loadState, or they have
@@ -456,19 +529,14 @@ export abstract class Field implements IASTNodeLocationSvg,
 
   /**
    * Dispose of all DOM objects and events belonging to this editable field.
-   *
-   * @internal
    */
   dispose() {
     dropDownDiv.hideIfOwner(this);
     WidgetDiv.hideIfOwner(this);
-    Tooltip.unbindMouseEvents(this.getClickTarget_());
 
-    if (this.mouseDownWrapper_) {
-      browserEvents.unbind(this.mouseDownWrapper_);
+    if (!this.getSourceBlock()?.isDeadOrDying()) {
+      dom.removeNode(this.fieldGroup_);
     }
-
-    dom.removeNode(this.fieldGroup_);
 
     this.disposed = true;
   }
@@ -476,17 +544,16 @@ export abstract class Field implements IASTNodeLocationSvg,
   /** Add or remove the UI indicating if this field is editable or not. */
   updateEditable() {
     const group = this.fieldGroup_;
-    if (!this.EDITABLE || !group) {
+    const block = this.getSourceBlock();
+    if (!this.EDITABLE || !group || !block) {
       return;
     }
-    if (this.enabled_ && this.getSourceBlock().isEditable()) {
-      dom.addClass(group, 'blocklyEditableText');
-      dom.removeClass(group, 'blocklyNonEditableText');
-      group.style.cursor = this.CURSOR;
+    if (this.enabled_ && block.isEditable()) {
+      dom.addClass(group, 'blocklyEditableField');
+      dom.removeClass(group, 'blocklyNonEditableField');
     } else {
-      dom.addClass(group, 'blocklyNonEditableText');
-      dom.removeClass(group, 'blocklyEditableText');
-      group.style.cursor = '';
+      dom.addClass(group, 'blocklyNonEditableField');
+      dom.removeClass(group, 'blocklyEditableField');
     }
   }
 
@@ -517,9 +584,26 @@ export abstract class Field implements IASTNodeLocationSvg,
    * @returns Whether this field is clickable.
    */
   isClickable(): boolean {
-    return this.enabled_ && !!this.sourceBlock_ &&
-        this.sourceBlock_.isEditable() &&
-        this.showEditor_ !== Field.prototype.showEditor_;
+    return (
+      this.enabled_ &&
+      !!this.sourceBlock_ &&
+      this.sourceBlock_.isEditable() &&
+      this.showEditor_ !== Field.prototype.showEditor_
+    );
+  }
+
+  /**
+   * Check whether the field should be clickable while the block is in a flyout.
+   * The default is that fields are clickable in always-open flyouts such as the
+   * simple toolbox, but not in autoclosing flyouts such as the category toolbox.
+   * Subclasses may override this function to change this behavior. Note that
+   * `isClickable` must also return true for this to have any effect.
+   *
+   * @param autoClosingFlyout true if the containing flyout is an auto-closing one.
+   * @returns Whether the field should be clickable while the block is in a flyout.
+   */
+  isClickableInFlyout(autoClosingFlyout: boolean): boolean {
+    return !autoClosingFlyout;
   }
 
   /**
@@ -531,8 +615,12 @@ export abstract class Field implements IASTNodeLocationSvg,
    *     editable block.
    */
   isCurrentlyEditable(): boolean {
-    return this.enabled_ && this.EDITABLE && !!this.sourceBlock_ &&
-        this.sourceBlock_.isEditable();
+    return (
+      this.enabled_ &&
+      this.EDITABLE &&
+      !!this.sourceBlock_ &&
+      this.sourceBlock_.isEditable()
+    );
   }
 
   /**
@@ -548,9 +636,10 @@ export abstract class Field implements IASTNodeLocationSvg,
         isSerializable = true;
       } else if (this.EDITABLE) {
         console.warn(
-            'Detected an editable field that was not serializable.' +
+          'Detected an editable field that was not serializable.' +
             ' Please define SERIALIZABLE property as true on all editable custom' +
-            ' fields. Proceeding with serialization.');
+            ' fields. Proceeding with serialization.',
+        );
         isSerializable = true;
       }
     }
@@ -599,7 +688,7 @@ export abstract class Field implements IASTNodeLocationSvg,
    * @param handler The validator function or null to clear a previous
    *     validator.
    */
-  setValidator(handler: Function) {
+  setValidator(handler: FieldValidator<T>) {
     this.validator_ = handler;
   }
 
@@ -608,7 +697,7 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @returns Validation function, or null.
    */
-  getValidator(): Function|null {
+  getValidator(): FieldValidator<T> | null {
     return this.validator_;
   }
 
@@ -618,7 +707,7 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @returns The group element.
    */
-  getSvgRoot(): SVGGElement|null {
+  getSvgRoot(): SVGGElement | null {
     return this.fieldGroup_;
   }
 
@@ -662,13 +751,18 @@ export abstract class Field implements IASTNodeLocationSvg,
   }
 
   /**
-   * Updates the field to match the colour/style of the block. Should only be
-   * called by BlockSvg.applyColour().
+   * Updates the field to match the colour/style of the block.
    *
-   * @internal
+   * Non-abstract sub-classes may wish to implement this if the colour of the
+   * field depends on the colour of the block. It will automatically be called
+   * at relevant times, such as when the parent block or renderer changes.
+   *
+   * See {@link
+   * https://developers.google.com/blockly/guides/create-custom-blocks/fields/customizing-fields/creating#matching_block_colours
+   * | the field documentation} for more information, or FieldDropdown for an
+   * example.
    */
   applyColour() {}
-  // Non-abstract sub-classes may wish to implement this. See FieldDropdown.
 
   /**
    * Used by getSize() to move/resize any DOM elements, and get the new size.
@@ -687,14 +781,14 @@ export abstract class Field implements IASTNodeLocationSvg,
    * Calls showEditor_ when the field is clicked if the field is clickable.
    * Do not override.
    *
-   * @param opt_e Optional mouse event that triggered the field to open, or
+   * @param e Optional mouse event that triggered the field to open, or
    *     undefined if triggered programmatically.
    * @sealed
    * @internal
    */
-  showEditor(opt_e?: Event) {
+  showEditor(e?: Event) {
     if (this.isClickable()) {
-      this.showEditor_(opt_e);
+      this.showEditor_(e);
     }
   }
 
@@ -709,31 +803,53 @@ export abstract class Field implements IASTNodeLocationSvg,
   // NOP
 
   /**
+   * A developer hook to reposition the WidgetDiv during a window resize. You
+   * need to define this hook if your field has a WidgetDiv that needs to
+   * reposition itself when the window is resized. For example, text input
+   * fields define this hook so that the input WidgetDiv can reposition itself
+   * on a window resize event. This is especially important when modal inputs
+   * have been disabled, as Android devices will fire a window resize event when
+   * the soft keyboard opens.
+   *
+   * If you want the WidgetDiv to hide itself instead of repositioning, return
+   * false. This is the default behavior.
+   *
+   * DropdownDivs already handle their own positioning logic, so you do not need
+   * to override this function if your field only has a DropdownDiv.
+   *
+   * @returns True if the field should be repositioned,
+   *    false if the WidgetDiv should hide itself instead.
+   */
+  repositionForWindowResize(): boolean {
+    return false;
+  }
+
+  /**
    * Updates the size of the field based on the text.
    *
-   * @param opt_margin margin to use when positioning the text element.
+   * @param margin margin to use when positioning the text element.
    */
-  protected updateSize_(opt_margin?: number) {
+  protected updateSize_(margin?: number) {
     const constants = this.getConstants();
-    const xOffset = opt_margin !== undefined ? opt_margin :
-        this.borderRect_ ? this.getConstants()!.FIELD_BORDER_RECT_X_PADDING :
-                           0;
+    const xOffset =
+      margin !== undefined
+        ? margin
+        : !this.isFullBlockField()
+          ? this.getConstants()!.FIELD_BORDER_RECT_X_PADDING
+          : 0;
     let totalWidth = xOffset * 2;
     let totalHeight = constants!.FIELD_TEXT_HEIGHT;
 
     let contentWidth = 0;
     if (this.textElement_) {
-      contentWidth = dom.getFastTextWidth(
-          this.textElement_, constants!.FIELD_TEXT_FONTSIZE,
-          constants!.FIELD_TEXT_FONTWEIGHT, constants!.FIELD_TEXT_FONTFAMILY);
+      contentWidth = dom.getTextWidth(this.textElement_);
       totalWidth += contentWidth;
     }
-    if (this.borderRect_) {
+    if (!this.isFullBlockField()) {
       totalHeight = Math.max(totalHeight, constants!.FIELD_BORDER_RECT_HEIGHT);
     }
 
-    this.size_.height = totalHeight;
-    this.size_.width = totalWidth;
+    this.size_ = new Size(totalWidth, totalHeight);
 
     this.positionTextElement_(xOffset, contentWidth);
     this.positionBorderRect_();
@@ -754,18 +870,23 @@ export abstract class Field implements IASTNodeLocationSvg,
     const halfHeight = this.size_.height / 2;
 
     this.textElement_.setAttribute(
-        'x',
-        `${
-            this.getSourceBlock().RTL ?
-                this.size_.width - contentWidth - xOffset :
-                xOffset}`);
+      'x',
+      String(
+        this.getSourceBlock()?.RTL
+          ? this.size_.width - contentWidth - xOffset
+          : xOffset,
+      ),
+    );
     this.textElement_.setAttribute(
-        'y',
-        `${
-            constants!.FIELD_TEXT_BASELINE_CENTER ?
-                halfHeight :
-                halfHeight - constants!.FIELD_TEXT_HEIGHT / 2 +
-                    constants!.FIELD_TEXT_BASELINE}`);
+      'y',
+      String(
+        constants!.FIELD_TEXT_BASELINE_CENTER
+          ? halfHeight
+          : halfHeight -
+              constants!.FIELD_TEXT_HEIGHT / 2 +
+              constants!.FIELD_TEXT_BASELINE,
+      ),
+    );
   }
 
   /** Position a field's border rect after a size change. */
@@ -773,12 +894,16 @@ export abstract class Field implements IASTNodeLocationSvg,
     if (!this.borderRect_) {
       return;
     }
-    this.borderRect_.setAttribute('width', `${this.size_.width}`);
-    this.borderRect_.setAttribute('height', `${this.size_.height}`);
+    this.borderRect_.setAttribute('width', String(this.size_.width));
+    this.borderRect_.setAttribute('height', String(this.size_.height));
     this.borderRect_.setAttribute(
-        'rx', `${this.getConstants()!.FIELD_BORDER_RECT_RADIUS}`);
+      'rx',
+      String(this.getConstants()!.FIELD_BORDER_RECT_RADIUS),
+    );
     this.borderRect_.setAttribute(
-        'ry', `${this.getConstants()!.FIELD_BORDER_RECT_RADIUS}`);
+      'ry',
+      String(this.getConstants()!.FIELD_BORDER_RECT_RADIUS),
+    );
   }
 
   /**
@@ -796,13 +921,6 @@ export abstract class Field implements IASTNodeLocationSvg,
     if (this.isDirty_) {
       this.render_();
       this.isDirty_ = false;
-    } else if (this.visible_ && this.size_.width === 0) {
-      // If the field is not visible the width will be 0 as well, one of the
-      // problems with the old system.
-      console.warn(
-          'Deprecated use of setting size_.width to 0 to rerender a' +
-          ' field. Set field.isDirty_ to true instead.');
-      this.render_();
     }
     return this.size_;
   }
@@ -819,12 +937,17 @@ export abstract class Field implements IASTNodeLocationSvg,
     let scaledWidth;
     let scaledHeight;
     let xy;
-    if (!this.borderRect_) {
+    const block = this.getSourceBlock();
+    if (!block) {
+      throw new UnattachedFieldError();
+    }
+
+    if (this.isFullBlockField()) {
       // Browsers are inconsistent in what they return for a bounding box.
       // - Webkit / Blink: fill-box / object bounding box
       // - Gecko: stroke-box
       const bBox = (this.sourceBlock_ as BlockSvg).getHeightWidth();
-      const scale = (this.getSourceBlock().workspace as WorkspaceSvg).scale;
+      const scale = (block.workspace as WorkspaceSvg).scale;
       xy = this.getAbsoluteXY_();
       scaledWidth = (bBox.width + 1) * scale;
       scaledHeight = (bBox.height + 1) * scale;
@@ -837,13 +960,21 @@ export abstract class Field implements IASTNodeLocationSvg,
         xy.y -= 0.5 * scale;
       }
     } else {
-      const bBox = this.borderRect_.getBoundingClientRect();
-      xy = style.getPageOffset(this.borderRect_);
+      const bBox = this.borderRect_!.getBoundingClientRect();
+      xy = style.getPageOffset(this.borderRect_!);
       scaledWidth = bBox.width;
       scaledHeight = bBox.height;
     }
     return new Rect(xy.y, xy.y + scaledHeight, xy.x, xy.x + scaledWidth);
   }
+
+  /**
+   * Notifies the field that it has changed locations.
+   *
+   * @param _ The location of this field's block's top-start corner
+   *     in workspace coordinates.
+   */
+  onLocationChange(_: Coordinate) {}
 
   /**
    * Get the text from this field to display on the block. May differ from
@@ -853,10 +984,6 @@ export abstract class Field implements IASTNodeLocationSvg,
    */
   protected getDisplayText_(): string {
     let text = this.getText();
-    if (!text) {
-      // Prevent the field from disappearing if empty.
-      return Field.NBSP;
-    }
     if (text.length > this.maxDisplayLength) {
       // Truncate displayed string and add an ellipsis ('...').
       text = text.substring(0, this.maxDisplayLength - 2) + '…';
@@ -896,7 +1023,7 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @returns Current text or null.
    */
-  protected getText_(): string|null {
+  protected getText_(): string | null {
     return null;
   }
 
@@ -918,15 +1045,11 @@ export abstract class Field implements IASTNodeLocationSvg,
    * rerender this field and adjust for any sizing changes.
    * Other fields on the same block will not rerender, because their sizes have
    * already been recorded.
-   *
-   * @internal
    */
   forceRerender() {
     this.isDirty_ = true;
     if (this.sourceBlock_ && this.sourceBlock_.rendered) {
-      (this.sourceBlock_ as BlockSvg).render();
-      (this.sourceBlock_ as BlockSvg).bumpNeighbours();
-      this.updateMarkers_();
+      (this.sourceBlock_ as BlockSvg).queueRender();
     }
   }
 
@@ -936,56 +1059,81 @@ export abstract class Field implements IASTNodeLocationSvg,
    * than this method.
    *
    * @param newValue New value.
+   * @param fireChangeEvent Whether to fire a change event. Defaults to true.
+   *     Should usually be true unless the change will be reported some other
+   *     way, e.g. an intermediate field change event.
    * @sealed
    */
-  setValue(newValue: AnyDuringMigration) {
+  setValue(newValue: AnyDuringMigration, fireChangeEvent = true) {
     const doLogging = false;
     if (newValue === null) {
-      doLogging && console.log('null, return');
+      if (doLogging) console.log('null, return');
       // Not a valid value to check.
       return;
     }
 
-    let validatedValue = this.doClassValidation_(newValue);
-    // Class validators might accidentally forget to return, we'll ignore that.
-    newValue = this.processValidation_(newValue, validatedValue);
-    if (newValue instanceof Error) {
-      doLogging && console.log('invalid class validation, return');
-      return;
+    // Field validators are allowed to make changes to the workspace, which
+    // should get grouped with the field value change event.
+    const existingGroup = eventUtils.getGroup();
+    if (!existingGroup) {
+      eventUtils.setGroup(true);
     }
 
-    const localValidator = this.getValidator();
-    if (localValidator) {
-      validatedValue = localValidator.call(this, newValue);
-      // Local validators might accidentally forget to return, we'll ignore
-      // that.
-      newValue = this.processValidation_(newValue, validatedValue);
-      if (newValue instanceof Error) {
-        doLogging && console.log('invalid local validation, return');
+    try {
+      const classValidation = this.doClassValidation_(newValue);
+      const classValue = this.processValidation(
+        newValue,
+        classValidation,
+        fireChangeEvent,
+      );
+      if (classValue instanceof Error) {
+        if (doLogging) console.log('invalid class validation, return');
         return;
       }
-    }
-    const source = this.sourceBlock_;
-    if (source && source.disposed) {
-      doLogging && console.log('source disposed, return');
-      return;
-    }
-    const oldValue = this.getValue();
-    if (oldValue === newValue) {
-      doLogging && console.log('same, doValueUpdate_, return');
-      this.doValueUpdate_(newValue);
-      return;
-    }
 
-    this.doValueUpdate_(newValue);
-    if (source && eventUtils.isEnabled()) {
-      eventUtils.fire(new (eventUtils.get(eventUtils.BLOCK_CHANGE))(
-          source, 'field', this.name || null, oldValue, newValue));
+      const localValidation = this.getValidator()?.call(this, classValue);
+      const localValue = this.processValidation(
+        classValue,
+        localValidation,
+        fireChangeEvent,
+      );
+      if (localValue instanceof Error) {
+        if (doLogging) console.log('invalid local validation, return');
+        return;
+      }
+
+      const source = this.sourceBlock_;
+      if (source && source.disposed) {
+        if (doLogging) console.log('source disposed, return');
+        return;
+      }
+
+      const oldValue = this.getValue();
+      if (oldValue === localValue) {
+        if (doLogging) console.log('same, doValueUpdate_, return');
+        this.doValueUpdate_(localValue);
+        return;
+      }
+
+      this.doValueUpdate_(localValue);
+      if (fireChangeEvent && source && eventUtils.isEnabled()) {
+        eventUtils.fire(
+          new (eventUtils.get(EventType.BLOCK_CHANGE))(
+            source,
+            'field',
+            this.name || null,
+            oldValue,
+            localValue,
+          ),
+        );
+      }
+      if (this.isDirty_) {
+        this.forceRerender();
+      }
+      if (doLogging) console.log(this.value_);
+    } finally {
+      eventUtils.setGroup(existingGroup);
     }
-    if (this.isDirty_) {
-      this.forceRerender();
-    }
-    doLogging && console.log(this.value_);
   }
 
   /**
@@ -993,22 +1141,22 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @param newValue New value.
    * @param validatedValue Validated value.
+   * @param fireChangeEvent Whether to fire a change event if the value changes.
    * @returns New value, or an Error object.
    */
-  private processValidation_(
-      newValue: AnyDuringMigration,
-      validatedValue: AnyDuringMigration): AnyDuringMigration {
+  private processValidation(
+    newValue: AnyDuringMigration,
+    validatedValue: T | null | undefined,
+    fireChangeEvent: boolean,
+  ): T | Error {
     if (validatedValue === null) {
-      this.doValueInvalid_(newValue);
+      this.doValueInvalid_(newValue, fireChangeEvent);
       if (this.isDirty_) {
         this.forceRerender();
       }
       return Error();
     }
-    if (validatedValue !== undefined) {
-      newValue = validatedValue;
-    }
-    return newValue;
+    return validatedValue === undefined ? (newValue as T) : validatedValue;
   }
 
   /**
@@ -1016,23 +1164,40 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @returns Current value.
    */
-  getValue(): AnyDuringMigration {
+  getValue(): T | null {
     return this.value_;
   }
 
   /**
-   * Used to validate a value. Returns input by default. Can be overridden by
-   * subclasses, see FieldDropdown.
+   * Validate the changes to a field's value before they are set. See
+   * **FieldDropdown** for an example of subclass implementation.
    *
-   * @param opt_newValue The value to be validated.
-   * @returns The validated value, same as input by default.
+   * **NOTE:** Validation returns one option between `T`, `null`, and
+   * `undefined`. **Field**'s implementation will never return `undefined`, but
+   * it is valid for a subclass to return `undefined` if the new value is
+   * compatible with `T`.
+   *
+   * @see {@link https://developers.google.com/blockly/guides/create-custom-blocks/fields/validators#return_values}
+   * @param newValue - The value to be validated.
+   * @returns One of three instructions for setting the new value: `T`, `null`,
+   * or `undefined`.
+   *
+   * - `T` to set this function's returned value instead of `newValue`.
+   *
+   * - `null` to invoke `doValueInvalid_` and not set a value.
+   *
+   * - `undefined` to set `newValue` as is.
    */
-  protected doClassValidation_(opt_newValue?: AnyDuringMigration):
-      AnyDuringMigration {
-    if (opt_newValue === null || opt_newValue === undefined) {
+  protected doClassValidation_(newValue: T): T | null | undefined;
+  protected doClassValidation_(newValue?: AnyDuringMigration): T | null;
+  protected doClassValidation_(
+    newValue?: T | AnyDuringMigration,
+  ): T | null | undefined {
+    if (newValue === null || newValue === undefined) {
       return null;
     }
-    return opt_newValue;
+
+    return newValue as T;
   }
 
   /**
@@ -1041,7 +1206,7 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @param newValue The value to be saved.
    */
-  protected doValueUpdate_(newValue: AnyDuringMigration) {
+  protected doValueUpdate_(newValue: T) {
     this.value_ = newValue;
     this.isDirty_ = true;
   }
@@ -1052,16 +1217,20 @@ export abstract class Field implements IASTNodeLocationSvg,
    * No-op by default.
    *
    * @param _invalidValue The input value that was determined to be invalid.
+   * @param _fireChangeEvent Whether to fire a change event if the value changes.
    */
-  protected doValueInvalid_(_invalidValue: AnyDuringMigration) {}
+  protected doValueInvalid_(
+    _invalidValue: AnyDuringMigration,
+    _fireChangeEvent: boolean = true,
+  ) {}
   // NOP
 
   /**
-   * Handle a mouse down event on a field.
+   * Handle a pointerdown event on a field.
    *
-   * @param e Mouse down event.
+   * @param e Pointer down event.
    */
-  protected onMouseDown_(e: Event) {
+  protected onMouseDown_(e: PointerEvent) {
     if (!this.sourceBlock_ || this.sourceBlock_.isDeadOrDying()) {
       return;
     }
@@ -1079,8 +1248,9 @@ export abstract class Field implements IASTNodeLocationSvg,
    *     display the tooltip of the parent block. To not display a tooltip pass
    *     the empty string.
    */
-  setTooltip(newTip: Tooltip.TipInfo|null) {
-    if (!newTip && newTip !== '') {  // If null or undefined.
+  setTooltip(newTip: Tooltip.TipInfo | null) {
+    if (!newTip && newTip !== '') {
+      // If null or undefined.
       newTip = this.sourceBlock_;
     }
     const clickTarget = this.getClickTarget_();
@@ -1088,7 +1258,7 @@ export abstract class Field implements IASTNodeLocationSvg,
       (clickTarget as AnyDuringMigration).tooltip = newTip;
     } else {
       // Field has not been initialized yet.
-      this.tooltip_ = newTip;
+      this.tooltip = newTip;
     }
   }
 
@@ -1102,8 +1272,8 @@ export abstract class Field implements IASTNodeLocationSvg,
     if (clickTarget) {
       return Tooltip.getTooltipOfObject(clickTarget);
     }
-    // Field has not been initialized yet. Return stashed this.tooltip_ value.
-    return Tooltip.getTooltipOfObject({tooltip: this.tooltip_});
+    // Field has not been initialized yet. Return stashed this.tooltip value.
+    return Tooltip.getTooltipOfObject({tooltip: this.tooltip});
   }
 
   /**
@@ -1113,7 +1283,7 @@ export abstract class Field implements IASTNodeLocationSvg,
    *
    * @returns Element to bind click handler to.
    */
-  protected getClickTarget_(): Element|null {
+  protected getClickTarget_(): Element | null {
     return this.clickTarget_ || this.getSvgRoot();
   }
 
@@ -1133,7 +1303,6 @@ export abstract class Field implements IASTNodeLocationSvg,
    * Subclasses may override this.
    *
    * @returns True if this field has any variable references.
-   * @internal
    */
   referencesVariables(): boolean {
     return false;
@@ -1142,8 +1311,6 @@ export abstract class Field implements IASTNodeLocationSvg,
   /**
    * Refresh the variable name referenced by this field if this field references
    * variables.
-   *
-   * @internal
    */
   refreshVariableName() {}
   // NOP
@@ -1158,6 +1325,9 @@ export abstract class Field implements IASTNodeLocationSvg,
   getParentInput(): Input {
     let parentInput = null;
     const block = this.getSourceBlock();
+    if (!block) {
+      throw new UnattachedFieldError();
+    }
     const inputs = block.inputList;
 
     for (let idx = 0; idx < block.inputList.length; idx++) {
@@ -1183,15 +1353,6 @@ export abstract class Field implements IASTNodeLocationSvg,
   }
 
   /**
-   * Returns whether or not the field is tab navigable.
-   *
-   * @returns True if the field is tab navigable.
-   */
-  isTabNavigable(): boolean {
-    return false;
-  }
-
-  /**
    * Handles the given keyboard shortcut.
    *
    * @param _shortcut The shortcut to be handled.
@@ -1201,54 +1362,53 @@ export abstract class Field implements IASTNodeLocationSvg,
     return false;
   }
 
-  /**
-   * Add the cursor SVG to this fields SVG group.
-   *
-   * @param cursorSvg The SVG root of the cursor to be added to the field group.
-   * @internal
-   */
-  setCursorSvg(cursorSvg: SVGElement) {
-    if (!cursorSvg) {
-      this.cursorSvg_ = null;
-      return;
-    }
-
+  /** See IFocusableNode.getFocusableElement. */
+  getFocusableElement(): HTMLElement | SVGElement {
     if (!this.fieldGroup_) {
-      throw new Error(`The field group is ${this.fieldGroup_}.`);
+      throw Error('This field currently has no representative DOM element.');
     }
-    this.fieldGroup_.appendChild(cursorSvg);
-    this.cursorSvg_ = cursorSvg;
+    return this.fieldGroup_;
+  }
+
+  /** See IFocusableNode.getFocusableTree. */
+  getFocusableTree(): IFocusableTree {
+    const block = this.getSourceBlock();
+    if (!block) {
+      throw new UnattachedFieldError();
+    }
+    return block.workspace as WorkspaceSvg;
+  }
+
+  /** See IFocusableNode.onNodeFocus. */
+  onNodeFocus(): void {
+    const block = this.getSourceBlock() as BlockSvg;
+    block.workspace.scrollBoundsIntoView(
+      block.getBoundingRectangleWithoutChildren(),
+    );
+  }
+
+  /** See IFocusableNode.onNodeBlur. */
+  onNodeBlur(): void {}
+
+  /** See IFocusableNode.canBeFocused. */
+  canBeFocused(): boolean {
+    return true;
   }
 
   /**
-   * Add the marker SVG to this fields SVG group.
+   * Subclasses should reimplement this method to construct their Field
+   * subclass from a JSON arg object.
    *
-   * @param markerSvg The SVG root of the marker to be added to the field group.
-   * @internal
+   * It is an error to attempt to register a field subclass in the
+   * FieldRegistry if that subclass has not overridden this method.
+   *
+   * @param _options JSON configuration object with properties needed
+   *    to configure a specific field.
    */
-  setMarkerSvg(markerSvg: SVGElement) {
-    if (!markerSvg) {
-      this.markerSvg_ = null;
-      return;
-    }
-
-    if (!this.fieldGroup_) {
-      throw new Error(`The field group is ${this.fieldGroup_}.`);
-    }
-    this.fieldGroup_.appendChild(markerSvg);
-    this.markerSvg_ = markerSvg;
-  }
-
-  /** Redraw any attached marker or cursor svgs if needed. */
-  protected updateMarkers_() {
-    const workspace = this.getSourceBlock().workspace as WorkspaceSvg;
-    if (workspace.keyboardAccessibilityMode && this.cursorSvg_) {
-      workspace.getCursor()!.draw();
-    }
-    if (workspace.keyboardAccessibilityMode && this.markerSvg_) {
-      // TODO(#4592): Update all markers on the field.
-      workspace.getMarker(MarkerManager.LOCAL_MARKER)!.draw();
-    }
+  static fromJson(_options: FieldConfig): Field {
+    throw new Error(
+      `Attempted to instantiate a field from the registry that hasn't defined a 'fromJson' method.`,
+    );
   }
 }
 
@@ -1260,7 +1420,26 @@ export interface FieldConfig {
 }
 
 /**
- * For use by Field and descendants of Field. Constructors can change
+ * Represents an object that has all the prototype properties of the `Field`
+ * class. This is necessary because constructors can change
  * in descendants, though they should contain all of Field's prototype methods.
+ *
+ * This type should only be used in places where we directly access the prototype
+ * of a Field class or subclass.
  */
-export type FieldProto = Pick<typeof Field, 'prototype'>;
+type FieldProto = Pick<typeof Field, 'prototype'>;
+
+/**
+ * Represents an error where the field is trying to access its block or
+ * information about its block before it has actually been attached to said
+ * block.
+ */
+export class UnattachedFieldError extends Error {
+  /** @internal */
+  constructor() {
+    super(
+      'The field has not yet been attached to its input. ' +
+        'Call appendField to attach it.',
+    );
+  }
+}

@@ -9,26 +9,29 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.Click');
+
+// Former goog.module ID: Blockly.Events.Click
 
 import type {Block} from '../block.js';
 import * as registry from '../registry.js';
+import {Workspace} from '../workspace.js';
 import {AbstractEventJson} from './events_abstract.js';
-
 import {UiBase} from './events_ui_base.js';
-import * as eventUtils from './utils.js';
-
+import {EventType} from './type.js';
 
 /**
- * Class for a click event.
- *
- * @alias Blockly.Events.Click
+ * Notifies listeners that some blockly element was clicked.
  */
 export class Click extends UiBase {
+  /** The ID of the block that was clicked, if a block was clicked. */
   blockId?: string;
+
+  /**
+   * The type of element that was clicked; one of 'block', 'workspace',
+   * or 'zoom_controls'.
+   */
   targetType?: ClickTarget;
-  override type = eventUtils.CLICK;
+  override type = EventType.CLICK;
 
   /**
    * @param opt_block The affected block. Null for click events that do not have
@@ -40,8 +43,10 @@ export class Click extends UiBase {
    *     Undefined for a blank event.
    */
   constructor(
-      opt_block?: Block|null, opt_workspaceId?: string|null,
-      opt_targetType?: ClickTarget) {
+    opt_block?: Block | null,
+    opt_workspaceId?: string | null,
+    opt_targetType?: ClickTarget,
+  ) {
     let workspaceId = opt_block ? opt_block.workspace.id : opt_workspaceId;
     if (workspaceId === null) {
       workspaceId = undefined;
@@ -49,8 +54,6 @@ export class Click extends UiBase {
     super(workspaceId);
 
     this.blockId = opt_block ? opt_block.id : undefined;
-
-    /** The type of element targeted by this click event. */
     this.targetType = opt_targetType;
   }
 
@@ -63,8 +66,9 @@ export class Click extends UiBase {
     const json = super.toJson() as ClickJson;
     if (!this.targetType) {
       throw new Error(
-          'The click target type is undefined. Either pass a block to ' +
-          'the constructor, or call fromJson');
+        'The click target type is undefined. Either pass a block to ' +
+          'the constructor, or call fromJson',
+      );
     }
     json['targetType'] = this.targetType;
     json['blockId'] = this.blockId;
@@ -72,14 +76,23 @@ export class Click extends UiBase {
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of Click, but we can't specify that due to the fact that parameters to
+   *     static methods in subclasses must be supertypes of parameters to
+   *     static methods in superclasses.
+   * @internal
    */
-  override fromJson(json: ClickJson) {
-    super.fromJson(json);
-    this.targetType = json['targetType'];
-    this.blockId = json['blockId'];
+  static fromJson(json: ClickJson, workspace: Workspace, event?: any): Click {
+    const newEvent = super.fromJson(
+      json,
+      workspace,
+      event ?? new Click(),
+    ) as Click;
+    newEvent.targetType = json['targetType'];
+    newEvent.blockId = json['blockId'];
+    return newEvent;
   }
 }
 
@@ -94,4 +107,4 @@ export interface ClickJson extends AbstractEventJson {
   blockId?: string;
 }
 
-registry.register(registry.Type.EVENT, eventUtils.CLICK, Click);
+registry.register(registry.Type.EVENT, EventType.CLICK, Click);

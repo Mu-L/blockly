@@ -4,23 +4,20 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Utility functions for handling variables.
- *
- * @namespace Blockly.Variables
- */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Variables');
+// Former goog.module ID: Blockly.Variables
 
+import type {Block} from './block.js';
 import {Blocks} from './blocks.js';
 import * as dialog from './dialog.js';
+import {isLegacyProcedureDefBlock} from './interfaces/i_legacy_procedure_blocks.js';
+import {isVariableBackedParameterModel} from './interfaces/i_variable_backed_parameter_model.js';
+import {IVariableModel, IVariableState} from './interfaces/i_variable_model.js';
 import {Msg} from './msg.js';
+import * as deprecation from './utils/deprecation.js';
+import type {BlockInfo, FlyoutItemInfo} from './utils/toolbox.js';
 import * as utilsXml from './utils/xml.js';
-import {VariableModel} from './variable_model.js';
 import type {Workspace} from './workspace.js';
 import type {WorkspaceSvg} from './workspace_svg.js';
-import * as Xml from './xml.js';
-
 
 /**
  * String for use in the "custom" attribute of a category in toolbox XML.
@@ -28,24 +25,24 @@ import * as Xml from './xml.js';
  * variable blocks.
  * See also Blockly.Procedures.CATEGORY_NAME and
  * Blockly.VariablesDynamic.CATEGORY_NAME.
- *
- * @alias Blockly.Variables.CATEGORY_NAME
  */
 export const CATEGORY_NAME = 'VARIABLE';
 
 /**
  * Find all user-created variables that are in use in the workspace.
  * For use by generators.
+ *
  * To get a list of all variables on a workspace, including unused variables,
- * call Workspace.getAllVariables.
+ * call getAllVariables.
  *
  * @param ws The workspace to search for variables.
  * @returns Array of variable models.
- * @alias Blockly.Variables.allUsedVarModels
  */
-export function allUsedVarModels(ws: Workspace): VariableModel[] {
+export function allUsedVarModels(
+  ws: Workspace,
+): IVariableModel<IVariableState>[] {
   const blocks = ws.getAllBlocks(false);
-  const variables = new Set<VariableModel>();
+  const variables = new Set<IVariableModel<IVariableState>>();
   // Iterate through every block and add each variable to the set.
   for (let i = 0; i < blocks.length; i++) {
     const blockVariables = blocks[i].getVarModels();
@@ -65,6 +62,7 @@ export function allUsedVarModels(ws: Workspace): VariableModel[] {
 
 /**
  * Find all developer variables used by blocks in the workspace.
+ *
  * Developer variables are never shown to the user, but are declared as global
  * variables in the generated code.
  * To declare developer variables, define the getDeveloperVariables function on
@@ -73,12 +71,11 @@ export function allUsedVarModels(ws: Workspace): VariableModel[] {
  *
  * @param workspace The workspace to search.
  * @returns A list of non-duplicated variable names.
- * @alias Blockly.Variables.allDeveloperVariables
  */
 export function allDeveloperVariables(workspace: Workspace): string[] {
   const blocks = workspace.getAllBlocks(false);
   const variables = new Set<string>();
-  for (let i = 0, block; block = blocks[i]; i++) {
+  for (let i = 0, block; (block = blocks[i]); i++) {
     const getDeveloperVariables = block.getDeveloperVariables;
     if (getDeveloperVariables) {
       const devVars = getDeveloperVariables();
@@ -92,20 +89,170 @@ export function allDeveloperVariables(workspace: Workspace): string[] {
 }
 
 /**
+ * Internal wrapper that returns the contents of the variables category.
+ *
+ * @internal
+ * @param workspace The workspace to populate variable blocks for.
+ */
+export function internalFlyoutCategory(
+  workspace: WorkspaceSvg,
+): FlyoutItemInfo[] {
+  return flyoutCategory(workspace, false);
+}
+
+export function flyoutCategory(
+  workspace: WorkspaceSvg,
+  useXml: true,
+): Element[];
+export function flyoutCategory(
+  workspace: WorkspaceSvg,
+  useXml: false,
+): FlyoutItemInfo[];
+/**
+ * Construct the elements (blocks and button) required by the flyout for the
+ * variable category.
+ *
+ * @param workspace The workspace containing variables.
+ * @param useXml True to return the contents as XML, false to use JSON.
+ * @returns List of flyout contents as either XML or JSON.
+ */
+export function flyoutCategory(
+  workspace: WorkspaceSvg,
+  useXml = true,
+): Element[] | FlyoutItemInfo[] {
+  if (!Blocks['variables_set'] && !Blocks['variables_get']) {
+    console.warn(
+      'There are no variable blocks, but there is a variable category.',
+    );
+  }
+
+  if (useXml) {
+    deprecation.warn(
+      'The XML return value of Blockly.Variables.flyoutCategory()',
+      'v12',
+      'v13',
+      'the same method, but handle a return type of FlyoutItemInfo[] (JSON) instead.',
+    );
+    return xmlFlyoutCategory(workspace);
+  }
+
+  workspace.registerButtonCallback('CREATE_VARIABLE', function (button) {
+    createVariableButtonHandler(button.getTargetWorkspace());
+  });
+
+  return [
+    {
+      'kind': 'button',
+      'text': '%{BKY_NEW_VARIABLE}',
+      'callbackkey': 'CREATE_VARIABLE',
+    },
+    ...jsonFlyoutCategoryBlocks(
+      workspace,
+      workspace.getVariableMap().getVariablesOfType(''),
+      true,
+    ),
+  ];
+}
+
+/**
+ * Returns the JSON definition for a variable field.
+ *
+ * @param variable The variable the field should reference.
+ * @returns JSON for a variable field.
+ */
+function generateVariableFieldJson(variable: IVariableModel<IVariableState>) {
+  return {
+    'VAR': {
+      'name': variable.getName(),
+      'type': variable.getType(),
+    },
+  };
+}
+
+/**
+ * Construct the blocks required by the flyout for the variable category.
+ *
+ * @internal
+ * @param workspace The workspace containing variables.
+ * @param variables List of variables to create blocks for.
+ * @param includeChangeBlocks True to include `change x by _` blocks.
+ * @param getterType The type of the variable getter block to generate.
+ * @param setterType The type of the variable setter block to generate.
+ * @returns JSON list of blocks.
+ */
+export function jsonFlyoutCategoryBlocks(
+  workspace: Workspace,
+  variables: IVariableModel<IVariableState>[],
+  includeChangeBlocks: boolean,
+  getterType = 'variables_get',
+  setterType = 'variables_set',
+): BlockInfo[] {
+  includeChangeBlocks &&= Blocks['math_change'];
+
+  const blocks = [];
+  const mostRecentVariable = variables.slice(-1)[0];
+  if (mostRecentVariable) {
+    // Show one setter block, with the name of the most recently created variable.
+    if (Blocks[setterType]) {
+      blocks.push({
+        kind: 'block',
+        type: setterType,
+        gap: includeChangeBlocks ? 8 : 24,
+        fields: generateVariableFieldJson(mostRecentVariable),
+      });
+    }
+
+    if (includeChangeBlocks) {
+      blocks.push({
+        'kind': 'block',
+        'type': 'math_change',
+        'gap': Blocks[getterType] ? 20 : 8,
+        'fields': generateVariableFieldJson(mostRecentVariable),
+        'inputs': {
+          'DELTA': {
+            'shadow': {
+              'type': 'math_number',
+              'fields': {
+                'NUM': 1,
+              },
+            },
+          },
+        },
+      });
+    }
+  }
+
+  if (Blocks[getterType]) {
+    // Show one getter block for each variable, sorted in alphabetical order.
+    blocks.push(
+      ...variables.sort(compareByName).map((variable) => {
+        return {
+          'kind': 'block',
+          'type': getterType,
+          'gap': 8,
+          'fields': generateVariableFieldJson(variable),
+        };
+      }),
+    );
+  }
+
+  return blocks;
+}
+
+/**
  * Construct the elements (blocks and button) required by the flyout for the
  * variable category.
  *
  * @param workspace The workspace containing variables.
  * @returns Array of XML elements.
- * @alias Blockly.Variables.flyoutCategory
  */
-export function flyoutCategory(workspace: WorkspaceSvg): Element[] {
+function xmlFlyoutCategory(workspace: WorkspaceSvg): Element[] {
   let xmlList = new Array<Element>();
   const button = document.createElement('button');
   button.setAttribute('text', '%{BKY_NEW_VARIABLE}');
   button.setAttribute('callbackKey', 'CREATE_VARIABLE');
 
-  workspace.registerButtonCallback('CREATE_VARIABLE', function(button) {
+  workspace.registerButtonCallback('CREATE_VARIABLE', function (button) {
     createVariableButtonHandler(button.getTargetWorkspace());
   });
 
@@ -121,10 +268,9 @@ export function flyoutCategory(workspace: WorkspaceSvg): Element[] {
  *
  * @param workspace The workspace containing variables.
  * @returns Array of XML block elements.
- * @alias Blockly.Variables.flyoutCategoryBlocks
  */
 export function flyoutCategoryBlocks(workspace: Workspace): Element[] {
-  const variableModelList = workspace.getVariablesOfType('');
+  const variableModelList = workspace.getVariableMap().getVariablesOfType('');
 
   const xmlList = [];
   if (variableModelList.length > 0) {
@@ -142,19 +288,20 @@ export function flyoutCategoryBlocks(workspace: Workspace): Element[] {
       block.setAttribute('type', 'math_change');
       block.setAttribute('gap', Blocks['variables_get'] ? '20' : '8');
       block.appendChild(generateVariableFieldDom(mostRecentVariable));
-      const value = Xml.textToDom(
-          '<value name="DELTA">' +
+      const value = utilsXml.textToDom(
+        '<value name="DELTA">' +
           '<shadow type="math_number">' +
           '<field name="NUM">1</field>' +
           '</shadow>' +
-          '</value>');
+          '</value>',
+      );
       block.appendChild(value);
       xmlList.push(block);
     }
 
     if (Blocks['variables_get']) {
-      variableModelList.sort(VariableModel.compareByName);
-      for (let i = 0, variable; variable = variableModelList[i]; i++) {
+      variableModelList.sort(compareByName);
+      for (let i = 0, variable; (variable = variableModelList[i]); i++) {
         const block = utilsXml.createElement('block');
         block.setAttribute('type', 'variables_get');
         block.setAttribute('gap', '8');
@@ -166,7 +313,6 @@ export function flyoutCategoryBlocks(workspace: Workspace): Element[] {
   return xmlList;
 }
 
-/** @alias Blockly.Variables.VAR_LETTER_OPTIONS */
 export const VAR_LETTER_OPTIONS = 'ijkmnopqrstuvwxyzabcdefgh';
 
 /**
@@ -177,7 +323,6 @@ export const VAR_LETTER_OPTIONS = 'ijkmnopqrstuvwxyzabcdefgh';
  *
  * @param workspace The workspace to be unique in.
  * @returns New variable name.
- * @alias Blockly.Variables.generateUniqueName
  */
 export function generateUniqueName(workspace: Workspace): string {
   return TEST_ONLY.generateUniqueNameInternal(workspace);
@@ -188,7 +333,12 @@ export function generateUniqueName(workspace: Workspace): string {
  */
 function generateUniqueNameInternal(workspace: Workspace): string {
   return generateUniqueNameFromOptions(
-      VAR_LETTER_OPTIONS.charAt(0), workspace.getAllVariableNames());
+    VAR_LETTER_OPTIONS.charAt(0),
+    workspace
+      .getVariableMap()
+      .getAllVariables()
+      .map((v) => v.getName()),
+  );
 }
 
 /**
@@ -199,10 +349,11 @@ function generateUniqueNameInternal(workspace: Workspace): string {
  * @param startChar The character to start the search at.
  * @param usedNames A list of all of the used names.
  * @returns A unique name that is not present in the usedNames array.
- * @alias Blockly.Variables.generateUniqueNameFromOptions
  */
 export function generateUniqueNameFromOptions(
-    startChar: string, usedNames: string[]): string {
+  startChar: string,
+  usedNames: string[],
+): string {
   if (!usedNames.length) {
     return startChar;
   }
@@ -212,7 +363,6 @@ export function generateUniqueNameFromOptions(
   let letterIndex = letters.indexOf(startChar);
   let potName = startChar;
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     let inUse = false;
     for (let i = 0; i < usedNames.length; i++) {
@@ -222,7 +372,7 @@ export function generateUniqueNameFromOptions(
       }
     }
     if (!inUse) {
-      return potName;
+      break;
     }
 
     letterIndex++;
@@ -233,6 +383,7 @@ export function generateUniqueNameFromOptions(
     }
     potName = letters.charAt(letterIndex) + suffix;
   }
+  return potName;
 }
 
 /**
@@ -250,41 +401,42 @@ export function generateUniqueNameFromOptions(
  *     an existing variable was chosen.
  * @param opt_type The type of the variable like 'int', 'string', or ''. This
  *     will default to '', which is a specific type.
- * @alias Blockly.Variables.createVariableButtonHandler
  */
 export function createVariableButtonHandler(
-    workspace: Workspace, opt_callback?: (p1?: string|null) => void,
-    opt_type?: string) {
+  workspace: Workspace,
+  opt_callback?: (p1?: string | null) => void,
+  opt_type?: string,
+) {
   const type = opt_type || '';
   // This function needs to be named so it can be called recursively.
   function promptAndCheckWithAlert(defaultName: string) {
-    promptName(Msg['NEW_VARIABLE_TITLE'], defaultName, function(text) {
-      if (text) {
-        const existing = nameUsedWithAnyType(text, workspace);
-        if (existing) {
-          let msg;
-          if (existing.type === type) {
-            msg = Msg['VARIABLE_ALREADY_EXISTS'].replace('%1', existing.name);
-          } else {
-            msg = Msg['VARIABLE_ALREADY_EXISTS_FOR_ANOTHER_TYPE'];
-            msg = msg.replace('%1', existing.name).replace('%2', existing.type);
-          }
-          dialog.alert(msg, function() {
-            promptAndCheckWithAlert(text);
-          });
-        } else {
-          // No conflict
-          workspace.createVariable(text, type);
-          if (opt_callback) {
-            opt_callback(text);
-          }
-        }
-      } else {
+    promptName(Msg['NEW_VARIABLE_TITLE'], defaultName, function (text) {
+      if (!text) {
         // User canceled prompt.
-        if (opt_callback) {
-          opt_callback(null);
-        }
+        if (opt_callback) opt_callback(null);
+        return;
       }
+
+      const existing = nameUsedWithAnyType(text, workspace);
+      if (!existing) {
+        // No conflict
+        workspace.getVariableMap().createVariable(text, type);
+        if (opt_callback) opt_callback(text);
+        return;
+      }
+
+      let msg;
+      if (existing.getType() === type) {
+        msg = Msg['VARIABLE_ALREADY_EXISTS'].replace('%1', existing.getName());
+      } else {
+        msg = Msg['VARIABLE_ALREADY_EXISTS_FOR_ANOTHER_TYPE'];
+        msg = msg
+          .replace('%1', existing.getName())
+          .replace('%2', existing.getType());
+      }
+      dialog.alert(msg, function () {
+        promptAndCheckWithAlert(text);
+      });
     });
   }
   promptAndCheckWithAlert('');
@@ -300,38 +452,55 @@ export function createVariableButtonHandler(
  * @param opt_callback A callback. It will be passed an acceptable new variable
  *     name, or null if change is to be aborted (cancel button), or undefined if
  *     an existing variable was chosen.
- * @alias Blockly.Variables.renameVariable
  */
 export function renameVariable(
-    workspace: Workspace, variable: VariableModel,
-    opt_callback?: (p1?: string|null) => void) {
+  workspace: Workspace,
+  variable: IVariableModel<IVariableState>,
+  opt_callback?: (p1?: string | null) => void,
+) {
   // This function needs to be named so it can be called recursively.
   function promptAndCheckWithAlert(defaultName: string) {
-    const promptText =
-        Msg['RENAME_VARIABLE_TITLE'].replace('%1', variable.name);
-    promptName(promptText, defaultName, function(newName) {
-      if (newName) {
-        const existing =
-            nameUsedWithOtherType(newName, variable.type, workspace);
-        if (existing) {
-          const msg = Msg['VARIABLE_ALREADY_EXISTS_FOR_ANOTHER_TYPE']
-                          .replace('%1', existing.name)
-                          .replace('%2', existing.type);
-          dialog.alert(msg, function() {
-            promptAndCheckWithAlert(newName);
-          });
-        } else {
-          workspace.renameVariableById(variable.getId(), newName);
-          if (opt_callback) {
-            opt_callback(newName);
-          }
-        }
-      } else {
+    const promptText = Msg['RENAME_VARIABLE_TITLE'].replace(
+      '%1',
+      variable.getName(),
+    );
+    promptName(promptText, defaultName, function (newName) {
+      if (!newName) {
         // User canceled prompt.
-        if (opt_callback) {
-          opt_callback(null);
-        }
+        if (opt_callback) opt_callback(null);
+        return;
       }
+
+      const existing = nameUsedWithOtherType(
+        newName,
+        variable.getType(),
+        workspace,
+      );
+      const procedure = nameUsedWithConflictingParam(
+        variable.getName(),
+        newName,
+        workspace,
+      );
+      if (!existing && !procedure) {
+        // No conflict.
+        workspace.getVariableMap().renameVariable(variable, newName);
+        if (opt_callback) opt_callback(newName);
+        return;
+      }
+
+      let msg = '';
+      if (existing) {
+        msg = Msg['VARIABLE_ALREADY_EXISTS_FOR_ANOTHER_TYPE']
+          .replace('%1', existing.getName())
+          .replace('%2', existing.getType());
+      } else if (procedure) {
+        msg = Msg['VARIABLE_ALREADY_EXISTS_FOR_A_PARAMETER']
+          .replace('%1', newName)
+          .replace('%2', procedure);
+      }
+      dialog.alert(msg, function () {
+        promptAndCheckWithAlert(newName);
+      });
     });
   }
   promptAndCheckWithAlert('');
@@ -344,12 +513,13 @@ export function renameVariable(
  * @param defaultText The default value to show in the prompt's field.
  * @param callback A callback. It will be passed the new variable name, or null
  *     if the user picked something illegal.
- * @alias Blockly.Variables.promptName
  */
 export function promptName(
-    promptText: string, defaultText: string,
-    callback: (p1: string|null) => void) {
-  dialog.prompt(promptText, defaultText, function(newVar) {
+  promptText: string,
+  defaultText: string,
+  callback: (p1: string | null) => void,
+) {
+  dialog.prompt(promptText, defaultText, function (newVar) {
     // Merge runs of whitespace.  Strip leading and trailing whitespace.
     // Beyond this, all names are legal.
     if (newVar) {
@@ -373,12 +543,18 @@ export function promptName(
  *     none was found.
  */
 function nameUsedWithOtherType(
-    name: string, type: string, workspace: Workspace): VariableModel|null {
+  name: string,
+  type: string,
+  workspace: Workspace,
+): IVariableModel<IVariableState> | null {
   const allVariables = workspace.getVariableMap().getAllVariables();
 
   name = name.toLowerCase();
-  for (let i = 0, variable; variable = allVariables[i]; i++) {
-    if (variable.name.toLowerCase() === name && variable.type !== type) {
+  for (let i = 0, variable; (variable = allVariables[i]); i++) {
+    if (
+      variable.getName().toLowerCase() === name &&
+      variable.getType() !== type
+    ) {
       return variable;
     }
   }
@@ -391,17 +567,90 @@ function nameUsedWithOtherType(
  * @param name The name to search for.
  * @param workspace The workspace to search for the variable.
  * @returns The variable with the given name, or null if none was found.
- * @alias Blockly.Variables.nameUsedWithAnyType
  */
 export function nameUsedWithAnyType(
-    name: string, workspace: Workspace): VariableModel|null {
+  name: string,
+  workspace: Workspace,
+): IVariableModel<IVariableState> | null {
   const allVariables = workspace.getVariableMap().getAllVariables();
 
   name = name.toLowerCase();
-  for (let i = 0, variable; variable = allVariables[i]; i++) {
-    if (variable.name.toLowerCase() === name) {
+  for (let i = 0, variable; (variable = allVariables[i]); i++) {
+    if (variable.getName().toLowerCase() === name) {
       return variable;
     }
+  }
+  return null;
+}
+
+/**
+ * Returns the name of the procedure with a conflicting parameter name, or null
+ * if one does not exist.
+ *
+ * This checks the procedure map if it contains models, and the legacy procedure
+ * blocks otherwise.
+ *
+ * @param oldName The old name of the variable.
+ * @param newName The proposed name of the variable.
+ * @param workspace The workspace to search for conflicting parameters.
+ * @internal
+ */
+export function nameUsedWithConflictingParam(
+  oldName: string,
+  newName: string,
+  workspace: Workspace,
+): string | null {
+  return workspace.getProcedureMap().getProcedures().length
+    ? checkForConflictingParamWithProcedureModels(oldName, newName, workspace)
+    : checkForConflictingParamWithLegacyProcedures(oldName, newName, workspace);
+}
+
+/**
+ * Returns the name of the procedure model with a conflicting param name, or
+ * null if one does not exist.
+ */
+function checkForConflictingParamWithProcedureModels(
+  oldName: string,
+  newName: string,
+  workspace: Workspace,
+): string | null {
+  oldName = oldName.toLowerCase();
+  newName = newName.toLowerCase();
+
+  const procedures = workspace.getProcedureMap().getProcedures();
+  for (const procedure of procedures) {
+    const params = procedure
+      .getParameters()
+      .filter(isVariableBackedParameterModel)
+      .map((param) => param.getVariableModel().getName());
+    if (!params) continue;
+    const procHasOld = params.some((param) => param.toLowerCase() === oldName);
+    const procHasNew = params.some((param) => param.toLowerCase() === newName);
+    if (procHasOld && procHasNew) return procedure.getName();
+  }
+  return null;
+}
+
+/**
+ * Returns the name of the procedure block with a conflicting param name, or
+ * null if one does not exist.
+ */
+function checkForConflictingParamWithLegacyProcedures(
+  oldName: string,
+  newName: string,
+  workspace: Workspace,
+): string | null {
+  oldName = oldName.toLowerCase();
+  newName = newName.toLowerCase();
+
+  const blocks = workspace.getAllBlocks(false);
+  for (const block of blocks) {
+    if (!isLegacyProcedureDefBlock(block)) continue;
+    const def = block.getProcedureDef();
+    const params = def[1];
+    const blockHasOld = params.some((param) => param.toLowerCase() === oldName);
+    const blockHasNew = params.some((param) => param.toLowerCase() === newName);
+    if (blockHasOld && blockHasNew) return def[0];
   }
   return null;
 }
@@ -411,18 +660,18 @@ export function nameUsedWithAnyType(
  *
  * @param variableModel The variable model to represent.
  * @returns The generated DOM.
- * @alias Blockly.Variables.generateVariableFieldDom
  */
-export function generateVariableFieldDom(variableModel: VariableModel):
-    Element {
+export function generateVariableFieldDom(
+  variableModel: IVariableModel<IVariableState>,
+): Element {
   /* Generates the following XML:
    * <field name="VAR" id="goKTKmYJ8DhVHpruv" variabletype="int">foo</field>
    */
   const field = utilsXml.createElement('field');
   field.setAttribute('name', 'VAR');
   field.setAttribute('id', variableModel.getId());
-  field.setAttribute('variabletype', variableModel.type);
-  const name = utilsXml.createTextNode(variableModel.name);
+  field.setAttribute('variabletype', variableModel.getType());
+  const name = utilsXml.createTextNode(variableModel.getName());
   field.appendChild(name);
   return field;
 }
@@ -438,11 +687,13 @@ export function generateVariableFieldDom(variableModel: VariableModel):
  * @param opt_type The type to use to look up or create the variable.
  * @returns The variable corresponding to the given ID or name + type
  *     combination.
- * @alias Blockly.Variables.getOrCreateVariablePackage
  */
 export function getOrCreateVariablePackage(
-    workspace: Workspace, id: string|null, opt_name?: string,
-    opt_type?: string): VariableModel {
+  workspace: Workspace,
+  id: string | null,
+  opt_name?: string,
+  opt_type?: string,
+): IVariableModel<IVariableState> {
   let variable = getVariable(workspace, id, opt_name, opt_type);
   if (!variable) {
     variable = createVariable(workspace, id, opt_name, opt_type);
@@ -464,11 +715,13 @@ export function getOrCreateVariablePackage(
  *     Only used if lookup by ID fails.
  * @returns The variable corresponding to the given ID or name + type
  *     combination, or null if not found.
- * @alias Blockly.Variables.getVariable
  */
 export function getVariable(
-    workspace: Workspace, id: string|null, opt_name?: string,
-    opt_type?: string): VariableModel|null {
+  workspace: Workspace,
+  id: string | null,
+  opt_name?: string,
+  opt_type?: string,
+): IVariableModel<IVariableState> | null {
   const potentialVariableMap = workspace.getPotentialVariableMap();
   let variable = null;
   // Try to just get the variable, by ID if possible.
@@ -509,24 +762,32 @@ export function getVariable(
  *     combination.
  */
 function createVariable(
-    workspace: Workspace, id: string|null, opt_name?: string,
-    opt_type?: string): VariableModel {
+  workspace: Workspace,
+  id: string | null,
+  opt_name?: string,
+  opt_type?: string,
+): IVariableModel<IVariableState> {
+  const variableMap = workspace.getVariableMap();
   const potentialVariableMap = workspace.getPotentialVariableMap();
   // Variables without names get uniquely named for this workspace.
   if (!opt_name) {
-    const ws =
-        (workspace.isFlyout ? (workspace as WorkspaceSvg).targetWorkspace :
-                              workspace);
+    const ws = workspace.isFlyout
+      ? (workspace as WorkspaceSvg).targetWorkspace
+      : workspace;
     opt_name = generateUniqueName(ws!);
   }
 
   // Create a potential variable if in the flyout.
   let variable = null;
   if (potentialVariableMap) {
-    variable = potentialVariableMap.createVariable(opt_name, opt_type, id);
+    variable = potentialVariableMap.createVariable(
+      opt_name,
+      opt_type,
+      id ?? undefined,
+    );
   } else {
     // In the main workspace, create a real variable.
-    variable = workspace.createVariable(opt_name, opt_type, id);
+    variable = variableMap.createVariable(opt_name, opt_type, id);
   }
   return variable;
 }
@@ -542,11 +803,12 @@ function createVariable(
  * @returns The new array of variables that were freshly added to the workspace
  *     after creating the new block, or [] if no new variables were added to the
  *     workspace.
- * @alias Blockly.Variables.getAddedVariables
  * @internal
  */
 export function getAddedVariables(
-    workspace: Workspace, originalVariables: VariableModel[]): VariableModel[] {
+  workspace: Workspace,
+  originalVariables: IVariableModel<IVariableState>[],
+): IVariableModel<IVariableState>[] {
   const allCurrentVariables = workspace.getAllVariables();
   const addedVariables = [];
   if (originalVariables.length !== allCurrentVariables.length) {
@@ -554,12 +816,114 @@ export function getAddedVariables(
       const variable = allCurrentVariables[i];
       // For any variable that is present in allCurrentVariables but not
       // present in originalVariables, add the variable to addedVariables.
-      if (originalVariables.indexOf(variable) === -1) {
+      if (!originalVariables.includes(variable)) {
         addedVariables.push(variable);
       }
     }
   }
   return addedVariables;
+}
+
+/**
+ * A custom compare function for the VariableModel objects.
+ *
+ * @param var1 First variable to compare.
+ * @param var2 Second variable to compare.
+ * @returns -1 if name of var1 is less than name of var2, 0 if equal, and 1 if
+ *     greater.
+ * @internal
+ */
+export function compareByName(
+  var1: IVariableModel<IVariableState>,
+  var2: IVariableModel<IVariableState>,
+): number {
+  return var1
+    .getName()
+    .localeCompare(var2.getName(), undefined, {sensitivity: 'base'});
+}
+
+/**
+ * Find all the uses of a named variable.
+ *
+ * @param workspace The workspace to search for the variable.
+ * @param id ID of the variable to find.
+ * @returns Array of block usages.
+ */
+export function getVariableUsesById(workspace: Workspace, id: string): Block[] {
+  const uses = [];
+  const blocks = workspace.getAllBlocks(false);
+  // Iterate through every block and check the name.
+  for (let i = 0; i < blocks.length; i++) {
+    const blockVariables = blocks[i].getVarModels();
+    if (blockVariables) {
+      for (let j = 0; j < blockVariables.length; j++) {
+        if (blockVariables[j].getId() === id) {
+          uses.push(blocks[i]);
+        }
+      }
+    }
+  }
+  return uses;
+}
+
+/**
+ * Delete a variable and all of its uses from the given workspace. May prompt
+ * the user for confirmation.
+ *
+ * @param workspace The workspace from which to delete the variable.
+ * @param variable The variable to delete.
+ * @param triggeringBlock The block from which this deletion was triggered, if
+ *     any. Used to exclude it from checking and warning about blocks
+ *     referencing the variable being deleted.
+ */
+export function deleteVariable(
+  workspace: Workspace,
+  variable: IVariableModel<IVariableState>,
+  triggeringBlock?: Block,
+) {
+  // Check whether this variable is a function parameter before deleting.
+  const variableName = variable.getName();
+  const uses = getVariableUsesById(workspace, variable.getId());
+  for (let i = uses.length - 1; i >= 0; i--) {
+    const block = uses[i];
+    if (
+      block.type === 'procedures_defnoreturn' ||
+      block.type === 'procedures_defreturn'
+    ) {
+      const procedureName = String(block.getFieldValue('NAME'));
+      const deleteText = Msg['CANNOT_DELETE_VARIABLE_PROCEDURE']
+        .replace('%1', variableName)
+        .replace('%2', procedureName);
+      dialog.alert(deleteText);
+      return;
+    }
+    if (block === triggeringBlock) {
+      uses.splice(i, 1);
+    }
+  }
+
+  if ((triggeringBlock && uses.length) || uses.length > 1) {
+    // Confirm before deleting multiple blocks.
+    const confirmText = Msg['DELETE_VARIABLE_CONFIRMATION']
+      .replace(
+        '%1',
+        String(
+          uses.length +
+            (triggeringBlock && !triggeringBlock.workspace.isFlyout ? 1 : 0),
+        ),
+      )
+      .replace('%2', variableName);
+    dialog.confirm(confirmText, (ok) => {
+      if (ok && variable) {
+        workspace.getVariableMap().deleteVariable(variable);
+      }
+    });
+  } else {
+    // No confirmation necessary when the block that triggered the deletion is
+    // the only block referencing this variable or if only one block referencing
+    // this variable exists and the deletion was triggered programmatically.
+    workspace.getVariableMap().deleteVariable(variable);
+  }
 }
 
 export const TEST_ONLY = {

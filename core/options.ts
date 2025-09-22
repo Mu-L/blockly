@@ -9,11 +9,9 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Options');
+// Former goog.module ID: Blockly.Options
 
 import type {BlocklyOptions} from './blockly_options.js';
-import * as deprecation from './utils/deprecation.js';
 import * as registry from './registry.js';
 import {Theme} from './theme.js';
 import {Classic} from './theme/classic.js';
@@ -22,12 +20,9 @@ import type {Metrics} from './utils/metrics.js';
 import * as toolbox from './utils/toolbox.js';
 import type {WorkspaceSvg} from './workspace_svg.js';
 
-
 /**
  * Parse the user-specified options, using reasonable defaults where behaviour
  * is unspecified.
- *
- * @alias Blockly.Options
  */
 export class Options {
   RTL: boolean;
@@ -37,31 +32,33 @@ export class Options {
   disable: boolean;
   readOnly: boolean;
   maxBlocks: number;
-  maxInstances: {[key: string]: number}|null;
+  maxInstances: {[key: string]: number} | null;
+  modalInputs: boolean;
   pathToMedia: string;
   hasCategories: boolean;
   moveOptions: MoveOptions;
+  /** @deprecated  January 2019 */
   hasScrollbars: boolean;
   hasTrashcan: boolean;
   maxTrashcanContents: number;
   hasSounds: boolean;
   hasCss: boolean;
   horizontalLayout: boolean;
-  languageTree: toolbox.ToolboxInfo|null;
+  languageTree: toolbox.ToolboxInfo | null;
   gridOptions: GridOptions;
   zoomOptions: ZoomOptions;
   toolboxPosition: toolbox.Position;
   theme: Theme;
   renderer: string;
-  rendererOverrides: {[rendererConstant: string]: any}|null;
+  rendererOverrides: {[rendererConstant: string]: any} | null;
 
   /**
    * The SVG element for the grid pattern.
    * Created during injection.
    */
-  gridPattern: SVGElement|null = null;
-  parentWorkspace: WorkspaceSvg|null;
-  plugins: {[key: string]: (new(...p1: any[]) => any)|string};
+  gridPattern: SVGElement | null = null;
+  parentWorkspace: WorkspaceSvg | null;
+  plugins: {[key: string]: (new (...p1: any[]) => any) | string};
 
   /**
    * If set, sets the translation of the workspace to match the scrollbars.
@@ -70,13 +67,13 @@ export class Options {
    *     argument Contains an x and/or y property which is a float between 0
    *     and 1 specifying the degree of scrolling.
    */
-  setMetrics?: ((p1: {x?: number, y?: number}) => void) = undefined;
+  setMetrics?: (p1: {x?: number; y?: number}) => void = undefined;
 
   /**
    * A function that returns a metrics
    *     object that describes the current workspace.
    */
-  getMetrics?: (() => Metrics) = undefined;
+  getMetrics?: () => Metrics = undefined;
 
   /**
    * @param options Dictionary of options.
@@ -93,18 +90,19 @@ export class Options {
     let hasSounds = false;
     const readOnly = !!options['readOnly'];
     if (!readOnly) {
-      toolboxJsonDef =
-          toolbox.convertToolboxDefToJson(options['toolbox'] ?? null);
+      toolboxJsonDef = toolbox.convertToolboxDefToJson(
+        options['toolbox'] ?? null,
+      );
       hasCategories = toolbox.hasCategories(toolboxJsonDef);
       const rawHasTrashcan = options['trashcan'];
       hasTrashcan =
-          rawHasTrashcan === undefined ? hasCategories : rawHasTrashcan;
+        rawHasTrashcan === undefined ? hasCategories : rawHasTrashcan;
       const rawHasCollapse = options['collapse'];
       hasCollapse =
-          rawHasCollapse === undefined ? hasCategories : rawHasCollapse;
+        rawHasCollapse === undefined ? hasCategories : rawHasCollapse;
       const rawHasComments = options['comments'];
       hasComments =
-          rawHasComments === undefined ? hasCategories : rawHasComments;
+        rawHasComments === undefined ? hasCategories : rawHasComments;
       const rawHasDisable = options['disable'];
       hasDisable = rawHasDisable === undefined ? hasCategories : rawHasDisable;
       const rawHasSounds = options['sounds'];
@@ -128,11 +126,12 @@ export class Options {
 
     let toolboxPosition: toolbox.Position;
     if (horizontalLayout) {
-      toolboxPosition =
-          toolboxAtStart ? toolbox.Position.TOP : toolbox.Position.BOTTOM;
+      toolboxPosition = toolboxAtStart
+        ? toolbox.Position.TOP
+        : toolbox.Position.BOTTOM;
     } else {
-      toolboxPosition = toolboxAtStart === rtl ? toolbox.Position.RIGHT :
-                                                 toolbox.Position.LEFT;
+      toolboxPosition =
+        toolboxAtStart === rtl ? toolbox.Position.RIGHT : toolbox.Position.LEFT;
     }
 
     let hasCss = options['css'];
@@ -141,19 +140,21 @@ export class Options {
     }
     let pathToMedia = 'https://blockly-demo.appspot.com/static/media/';
     if (options['media']) {
-      pathToMedia = options['media'].endsWith('/') ? options['media'] :
-                                                     options['media'] + '/';
-    } else if ('path' in options) {
-      // 'path' is a deprecated option which has been replaced by 'media'.
-      deprecation.warn('path', 'Nov 2014', 'Jul 2023', 'media');
-      pathToMedia = (options as any)['path'] + 'media/';
+      pathToMedia = options['media'].endsWith('/')
+        ? options['media']
+        : options['media'] + '/';
     }
     const rawOneBasedIndex = options['oneBasedIndex'];
     const oneBasedIndex =
-        rawOneBasedIndex === undefined ? true : rawOneBasedIndex;
+      rawOneBasedIndex === undefined ? true : rawOneBasedIndex;
     const renderer = options['renderer'] || 'geras';
 
     const plugins = options['plugins'] || {};
+
+    let modalInputs = options['modalInputs'];
+    if (modalInputs === undefined) {
+      modalInputs = true;
+    }
 
     this.RTL = rtl;
     this.oneBasedIndex = oneBasedIndex;
@@ -163,10 +164,10 @@ export class Options {
     this.readOnly = readOnly;
     this.maxBlocks = options['maxBlocks'] || Infinity;
     this.maxInstances = options['maxInstances'] ?? null;
+    this.modalInputs = modalInputs;
     this.pathToMedia = pathToMedia;
     this.hasCategories = hasCategories;
-    this.moveOptions = Options.parseMoveOptions_(options, hasCategories);
-    /** @deprecated  January 2019 */
+    this.moveOptions = Options.parseMoveOptions(options, hasCategories);
     this.hasScrollbars = !!this.moveOptions.scrollbars;
     this.hasTrashcan = hasTrashcan;
     this.maxTrashcanContents = maxTrashcanContents;
@@ -174,10 +175,10 @@ export class Options {
     this.hasCss = hasCss;
     this.horizontalLayout = horizontalLayout;
     this.languageTree = toolboxJsonDef;
-    this.gridOptions = Options.parseGridOptions_(options);
-    this.zoomOptions = Options.parseZoomOptions_(options);
+    this.gridOptions = Options.parseGridOptions(options);
+    this.zoomOptions = Options.parseZoomOptions(options);
     this.toolboxPosition = toolboxPosition;
-    this.theme = Options.parseThemeOptions_(options);
+    this.theme = Options.parseThemeOptions(options);
     this.renderer = renderer;
     this.rendererOverrides = options['rendererOverrides'] ?? null;
 
@@ -200,12 +201,16 @@ export class Options {
    * @param hasCategories Whether the workspace has categories or not.
    * @returns Normalized move options.
    */
-  private static parseMoveOptions_(
-      options: BlocklyOptions, hasCategories: boolean): MoveOptions {
+  private static parseMoveOptions(
+    options: BlocklyOptions,
+    hasCategories: boolean,
+  ): MoveOptions {
     const move = options['move'] || {};
     const moveOptions = {} as MoveOptions;
-    if (move['scrollbars'] === undefined &&
-        options['scrollbars'] === undefined) {
+    if (
+      move['scrollbars'] === undefined &&
+      options['scrollbars'] === undefined
+    ) {
       moveOptions.scrollbars = hasCategories;
     } else if (typeof move['scrollbars'] === 'object') {
       moveOptions.scrollbars = {
@@ -215,12 +220,15 @@ export class Options {
       // Convert scrollbars object to boolean if they have the same value.
       // This allows us to easily check for whether any scrollbars exist using
       // !!moveOptions.scrollbars.
-      if (moveOptions.scrollbars.horizontal &&
-          moveOptions.scrollbars.vertical) {
+      if (
+        moveOptions.scrollbars.horizontal &&
+        moveOptions.scrollbars.vertical
+      ) {
         moveOptions.scrollbars = true;
       } else if (
-          !moveOptions.scrollbars.horizontal &&
-          !moveOptions.scrollbars.vertical) {
+        !moveOptions.scrollbars.horizontal &&
+        !moveOptions.scrollbars.vertical
+      ) {
         moveOptions.scrollbars = false;
       }
     } else {
@@ -252,7 +260,7 @@ export class Options {
    * @param options Dictionary of options.
    * @returns Normalized zoom options.
    */
-  private static parseZoomOptions_(options: BlocklyOptions): ZoomOptions {
+  private static parseZoomOptions(options: BlocklyOptions): ZoomOptions {
     const zoom = options['zoom'] || {};
     const zoomOptions = {} as ZoomOptions;
     if (zoom['controls'] === undefined) {
@@ -301,13 +309,13 @@ export class Options {
    * @param options Dictionary of options.
    * @returns Normalized grid options.
    */
-  private static parseGridOptions_(options: BlocklyOptions): GridOptions {
+  private static parseGridOptions(options: BlocklyOptions): GridOptions {
     const grid = options['grid'] || {};
     const gridOptions = {} as GridOptions;
     gridOptions.spacing = Number(grid['spacing']) || 0;
     gridOptions.colour = grid['colour'] || '#888';
     gridOptions.length =
-        grid['length'] === undefined ? 1 : Number(grid['length']);
+      grid['length'] === undefined ? 1 : Number(grid['length']);
     gridOptions.snap = gridOptions.spacing > 0 && !!grid['snap'];
     return gridOptions;
   }
@@ -319,7 +327,7 @@ export class Options {
    * @param options Dictionary of options.
    * @returns A Blockly Theme.
    */
-  private static parseThemeOptions_(options: BlocklyOptions): Theme {
+  private static parseThemeOptions(options: BlocklyOptions): Theme {
     const theme = options['theme'] || Classic;
     if (typeof theme === 'string') {
       return registry.getObject(registry.Type.THEME, theme) as Theme;
@@ -327,7 +335,9 @@ export class Options {
       return theme;
     }
     return Theme.defineTheme(
-        theme.name || 'builtin' + idGenerator.getNextUniqueId(), theme);
+      theme.name || 'builtin' + idGenerator.getNextUniqueId(),
+      theme,
+    );
   }
 }
 
@@ -341,7 +351,7 @@ export namespace Options {
 
   export interface MoveOptions {
     drag: boolean;
-    scrollbars: boolean|ScrollbarOptions;
+    scrollbars: boolean | ScrollbarOptions;
     wheel: boolean;
   }
 

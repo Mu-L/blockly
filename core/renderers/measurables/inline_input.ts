@@ -4,28 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Class representing inline inputs with connections on a rendered
- * block.
- *
- * @class
- */
-import * as goog from '../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.blockRendering.InlineInput');
+// Former goog.module ID: Blockly.blockRendering.InlineInput
 
-/* eslint-disable-next-line no-unused-vars */
-import type {Input} from '../../input.js';
+import type {Input} from '../../inputs/input.js';
 import type {ConstantProvider} from '../common/constants.js';
-
 import {InputConnection} from './input_connection.js';
 import {Types} from './types.js';
 
-
 /**
  * An object containing information about the space an inline input takes up
- * during rendering
- *
- * @alias Blockly.blockRendering.InlineInput
+ * during rendering.
  */
 export class InlineInput extends InputConnection {
   connectionHeight: number;
@@ -34,7 +22,6 @@ export class InlineInput extends InputConnection {
   /**
    * @param constants The rendering constants provider.
    * @param input The inline input to measure and store information for.
-   * @internal
    */
   constructor(constants: ConstantProvider, input: Input) {
     super(constants, input);
@@ -50,23 +37,25 @@ export class InlineInput extends InputConnection {
       this.height = this.connectedBlockHeight;
     }
 
-    this.connectionHeight = !this.isDynamicShape ?
-        this.shape.height as number :
-        (this.shape.height as (p1: number) => number)(this.height);
+    this.connectionHeight = !this.isDynamicShape
+      ? (this.shape.height as number)
+      : (this.shape.height as (p1: number) => number)(this.height);
 
-    this.connectionWidth = !this.isDynamicShape ?
-        this.shape.width as number :
-        (this.shape.width as (p1: number) => number)(this.height);
+    this.connectionWidth = !this.isDynamicShape
+      ? (this.shape.width as number)
+      : (this.shape.width as (p1: number) => number)(this.height);
     if (!this.connectedBlock) {
       this.width += this.connectionWidth * (this.isDynamicShape ? 2 : 1);
     }
 
-    this.connectionOffsetY = 'connectionOffsetY' in this.shape ?
-        this.shape.connectionOffsetY(this.connectionHeight) :
-        this.constants_.TAB_OFFSET_FROM_TOP;
+    this.connectionOffsetY =
+      'connectionOffsetY' in this.shape
+        ? this.shape.connectionOffsetY(this.connectionHeight)
+        : this.constants_.TAB_OFFSET_FROM_TOP;
 
-    this.connectionOffsetX = 'connectionOffsetX' in this.shape ?
-        this.shape.connectionOffsetX(this.connectionWidth) :
-        0;
+    this.connectionOffsetX =
+      'connectionOffsetX' in this.shape
+        ? this.shape.connectionOffsetX(this.connectionWidth)
+        : 0;
   }
 }

@@ -10,19 +10,19 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.dropDownDiv');
+// Former goog.module ID: Blockly.dropDownDiv
 
 import type {BlockSvg} from './block_svg.js';
+import * as browserEvents from './browser_events.js';
 import * as common from './common.js';
-import * as dom from './utils/dom.js';
 import type {Field} from './field.js';
+import {ReturnEphemeralFocus, getFocusManager} from './focus_manager.js';
+import * as dom from './utils/dom.js';
 import * as math from './utils/math.js';
 import {Rect} from './utils/rect.js';
 import type {Size} from './utils/size.js';
 import * as style from './utils/style.js';
 import type {WorkspaceSvg} from './workspace_svg.js';
-
 
 /**
  * Arrow size in px. Should match the value in CSS
@@ -52,10 +52,10 @@ export const ANIMATION_TIME = 0.25;
  * Timer for animation out, to be cleared if we need to immediately hide
  * without disrupting new shows.
  */
-let animateOutTimer: ReturnType<typeof setTimeout>|null = null;
+let animateOutTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Callback for when the drop-down is hidden. */
-let onHide: Function|null = null;
+let onHide: (() => void) | null = null;
 
 /** A class name representing the current owner's workspace renderer. */
 let renderedClassName = '';
@@ -76,13 +76,19 @@ let arrow: HTMLDivElement;
  * Drop-downs will appear within the bounds of this element if possible.
  * Set in setBoundsElement.
  */
-let boundsElement: Element|null = null;
+let boundsElement: Element | null = null;
 
 /** The object currently using the drop-down. */
-let owner: Field|null = null;
+let owner: Field | null = null;
 
 /** Whether the dropdown was positioned to a field or the source block. */
-let positionToField: boolean|null = null;
+let positionToField: boolean | null = null;
+
+/** Callback to FocusManager to return ephemeral focus when the div closes. */
+let returnEphemeralFocus: ReturnEphemeralFocus | null = null;
+
+/** Identifier for shortcut keydown listener used to unbind it. */
+let keydownListener: browserEvents.Data | null = null;
 
 /**
  * Dropdown bounds info object used to encapsulate sizing information about a
@@ -103,9 +109,9 @@ export interface PositionMetrics {
   initialY: number;
   finalX: number;
   finalY: number;
-  arrowX: number|null;
-  arrowY: number|null;
-  arrowAtTop: boolean|null;
+  arrowX: number | null;
+  arrowY: number | null;
+  arrowAtTop: boolean | null;
   arrowVisible: boolean;
 }
 
@@ -115,11 +121,12 @@ export interface PositionMetrics {
  * @internal
  */
 export function createDom() {
-  if (div) {
-    return;  // Already created.
+  if (document.querySelector('.blocklyDropDownDiv')) {
+    return; // Already created.
   }
   div = document.createElement('div');
   div.className = 'blocklyDropDownDiv';
+  div.tabIndex = -1;
   const parentDiv = common.getParentContainer() || document.body;
   parentDiv.appendChild(div);
 
@@ -127,23 +134,21 @@ export function createDom() {
   content.className = 'blocklyDropDownContent';
   div.appendChild(content);
 
+  keydownListener = browserEvents.conditionalBind(
+    content,
+    'keydown',
+    null,
+    common.globalShortcutHandler,
+  );
+
   arrow = document.createElement('div');
   arrow.className = 'blocklyDropDownArrow';
   div.appendChild(arrow);
 
   div.style.opacity = '0';
   // Transition animation for transform: translate() and opacity.
-  div.style.transition = 'transform ' + ANIMATION_TIME + 's, ' +
-      'opacity ' + ANIMATION_TIME + 's';
-
-  // Handle focusin/out events to add a visual indicator when
-  // a child is focused or blurred.
-  div.addEventListener('focusin', function() {
-    dom.addClass(div, 'blocklyFocused');
-  });
-  div.addEventListener('focusout', function() {
-    dom.removeClass(div, 'blocklyFocused');
-  });
+  div.style.transition =
+    'transform ' + ANIMATION_TIME + 's, ' + 'opacity ' + ANIMATION_TIME + 's';
 }
 
 /**
@@ -152,8 +157,15 @@ export function createDom() {
  *
  * @param boundsElem Element to bind drop-down to.
  */
-export function setBoundsElement(boundsElem: Element|null) {
+export function setBoundsElement(boundsElem: Element | null) {
   boundsElement = boundsElem;
+}
+
+/**
+ * @returns The field that currently owns this, or null.
+ */
+export function getOwner(): Field | null {
+  return owner;
 }
 
 /**
@@ -161,14 +173,18 @@ export function setBoundsElement(boundsElem: Element|null) {
  *
  * @returns Div to populate with content.
  */
-export function getContentDiv(): Element {
+export function getContentDiv(): HTMLDivElement {
   return content;
 }
 
 /** Clear the content of the drop-down. */
 export function clearContent() {
-  content.textContent = '';
-  content.style.width = '';
+  if (keydownListener) {
+    browserEvents.unbind(keydownListener);
+    keydownListener = null;
+  }
+  div.remove();
+  createDom();
 }
 
 /**
@@ -192,13 +208,27 @@ export function setColour(backgroundColour: string, borderColour: string) {
  * @param block Block to position the drop-down around.
  * @param opt_onHide Optional callback for when the drop-down is hidden.
  * @param opt_secondaryYOffset Optional Y offset for above-block positioning.
+ * @param manageEphemeralFocus Whether ephemeral focus should be managed
+ *     according to the drop-down div's lifetime. Note that if a false value is
+ *     passed in here then callers should manage ephemeral focus directly
+ *     otherwise focus may not properly restore when the widget closes. Defaults
+ *     to true.
  * @returns True if the menu rendered below block; false if above.
  */
-export function showPositionedByBlock(
-    field: Field, block: BlockSvg, opt_onHide?: Function,
-    opt_secondaryYOffset?: number): boolean {
+export function showPositionedByBlock<T>(
+  field: Field<T>,
+  block: BlockSvg,
+  opt_onHide?: () => void,
+  opt_secondaryYOffset?: number,
+  manageEphemeralFocus: boolean = true,
+): boolean {
   return showPositionedByRect(
-      getScaledBboxOfBlock(block), field, opt_onHide, opt_secondaryYOffset);
+    getScaledBboxOfBlock(block),
+    field as Field,
+    manageEphemeralFocus,
+    opt_onHide,
+    opt_secondaryYOffset,
+  );
 }
 
 /**
@@ -210,14 +240,27 @@ export function showPositionedByBlock(
  * @param field The field to position the dropdown against.
  * @param opt_onHide Optional callback for when the drop-down is hidden.
  * @param opt_secondaryYOffset Optional Y offset for above-block positioning.
+ * @param manageEphemeralFocus Whether ephemeral focus should be managed
+ *     according to the drop-down div's lifetime. Note that if a false value is
+ *     passed in here then callers should manage ephemeral focus directly
+ *     otherwise focus may not properly restore when the widget closes. Defaults
+ *     to true.
  * @returns True if the menu rendered below block; false if above.
  */
-export function showPositionedByField(
-    field: Field, opt_onHide?: Function,
-    opt_secondaryYOffset?: number): boolean {
+export function showPositionedByField<T>(
+  field: Field<T>,
+  opt_onHide?: () => void,
+  opt_secondaryYOffset?: number,
+  manageEphemeralFocus: boolean = true,
+): boolean {
   positionToField = true;
   return showPositionedByRect(
-      getScaledBboxOfField(field), field, opt_onHide, opt_secondaryYOffset);
+    getScaledBboxOfField(field as Field),
+    field as Field,
+    manageEphemeralFocus,
+    opt_onHide,
+    opt_secondaryYOffset,
+  );
 }
 /**
  * Get the scaled bounding box of a block.
@@ -255,11 +298,19 @@ function getScaledBboxOfField(field: Field): Rect {
  * @param field The field to position the dropdown against.
  * @param opt_onHide Optional callback for when the drop-down is hidden.
  * @param opt_secondaryYOffset Optional Y offset for above-block positioning.
+ * @param manageEphemeralFocus Whether ephemeral focus should be managed
+ *     according to the drop-down div's lifetime. Note that if a false value is
+ *     passed in here then callers should manage ephemeral focus directly
+ *     otherwise focus may not properly restore when the widget closes.
  * @returns True if the menu rendered below block; false if above.
  */
 function showPositionedByRect(
-    bBox: Rect, field: Field, opt_onHide?: Function,
-    opt_secondaryYOffset?: number): boolean {
+  bBox: Rect,
+  field: Field,
+  manageEphemeralFocus: boolean,
+  opt_onHide?: () => void,
+  opt_secondaryYOffset?: number,
+): boolean {
   // If we can fit it, render below the block.
   const primaryX = bBox.left + (bBox.right - bBox.left) / 2;
   const primaryY = bBox.bottom;
@@ -277,8 +328,15 @@ function showPositionedByRect(
   }
   setBoundsElement(workspace.getParentSvg().parentNode as Element | null);
   return show(
-      field, sourceBlock.RTL, primaryX, primaryY, secondaryX, secondaryY,
-      opt_onHide);
+    field,
+    sourceBlock.RTL,
+    primaryX,
+    primaryY,
+    secondaryX,
+    secondaryY,
+    manageEphemeralFocus,
+    opt_onHide,
+  );
 }
 
 /**
@@ -297,13 +355,22 @@ function showPositionedByRect(
  * @param secondaryX Secondary/alternative origin point x, in absolute px.
  * @param secondaryY Secondary/alternative origin point y, in absolute px.
  * @param opt_onHide Optional callback for when the drop-down is hidden.
+ * @param manageEphemeralFocus Whether ephemeral focus should be managed
+ *     according to the widget div's lifetime.
  * @returns True if the menu rendered at the primary origin point.
  * @internal
  */
-export function show(
-    newOwner: Field, rtl: boolean, primaryX: number, primaryY: number,
-    secondaryX: number, secondaryY: number, opt_onHide?: Function): boolean {
-  owner = newOwner;
+export function show<T>(
+  newOwner: Field<T>,
+  rtl: boolean,
+  primaryX: number,
+  primaryY: number,
+  secondaryX: number,
+  secondaryY: number,
+  manageEphemeralFocus: boolean,
+  opt_onHide?: () => void,
+): boolean {
+  owner = newOwner as Field;
   onHide = opt_onHide || null;
   // Set direction.
   div.style.direction = rtl ? 'rtl' : 'ltr';
@@ -311,12 +378,8 @@ export function show(
   const mainWorkspace = common.getMainWorkspace() as WorkspaceSvg;
   renderedClassName = mainWorkspace.getRenderer().getClassName();
   themeClassName = mainWorkspace.getTheme().getClassName();
-  if (renderedClassName) {
-    dom.addClass(div, renderedClassName);
-  }
-  if (themeClassName) {
-    dom.addClass(div, themeClassName);
-  }
+  dom.addClass(div, renderedClassName);
+  dom.addClass(div, themeClassName);
 
   // When we change `translate` multiple times in close succession,
   // Chrome may choose to wait and apply them all at once.
@@ -326,7 +389,15 @@ export function show(
   // making the dropdown appear to fly in from (0, 0).
   // Using both `left`, `top` for the initial translation and then `translate`
   // for the animated transition to final X, Y is a workaround.
-  return positionInternal(primaryX, primaryY, secondaryX, secondaryY);
+  const atOrigin = positionInternal(primaryX, primaryY, secondaryX, secondaryY);
+
+  // Ephemeral focus must happen after the div is fully visible in order to
+  // ensure that it properly receives focus.
+  if (manageEphemeralFocus) {
+    returnEphemeralFocus = getFocusManager().takeEphemeralFocus(div);
+  }
+
+  return atOrigin;
 }
 
 const internal = {
@@ -336,7 +407,7 @@ const internal = {
    * @returns An object containing size information about the bounding element
    *     (bounding box and width/height).
    */
-  getBoundsInfo: function(): BoundsInfo {
+  getBoundsInfo: function (): BoundsInfo {
     const boundPosition = style.getPageOffset(boundsElement as Element);
     const boundSize = style.getSize(boundsElement as Element);
 
@@ -361,9 +432,12 @@ const internal = {
    * @returns Various final metrics, including rendered positions for drop-down
    *     and arrow.
    */
-  getPositionMetrics: function(
-      primaryX: number, primaryY: number, secondaryX: number,
-      secondaryY: number): PositionMetrics {
+  getPositionMetrics: function (
+    primaryX: number,
+    primaryY: number,
+    secondaryX: number,
+    secondaryY: number,
+  ): PositionMetrics {
     const boundsInfo = internal.getBoundsInfo();
     const divSize = style.getSize(div as Element);
 
@@ -374,7 +448,11 @@ const internal = {
     // Can we fit in-bounds above the target?
     if (secondaryY - divSize.height > boundsInfo.top) {
       return getPositionAboveMetrics(
-          secondaryX, secondaryY, boundsInfo, divSize);
+        secondaryX,
+        secondaryY,
+        boundsInfo,
+        divSize,
+      );
     }
     // Can we fit outside the workspace bounds (but inside the window)
     // below?
@@ -385,7 +463,11 @@ const internal = {
     // above?
     if (secondaryY - divSize.height > document.documentElement.clientTop) {
       return getPositionAboveMetrics(
-          secondaryX, secondaryY, boundsInfo, divSize);
+        secondaryX,
+        secondaryY,
+        boundsInfo,
+        divSize,
+      );
     }
 
     // Last resort, render at top of page.
@@ -406,10 +488,17 @@ const internal = {
  *     and arrow.
  */
 function getPositionBelowMetrics(
-    primaryX: number, primaryY: number, boundsInfo: BoundsInfo,
-    divSize: Size): PositionMetrics {
-  const xCoords =
-      getPositionX(primaryX, boundsInfo.left, boundsInfo.right, divSize.width);
+  primaryX: number,
+  primaryY: number,
+  boundsInfo: BoundsInfo,
+  divSize: Size,
+): PositionMetrics {
+  const xCoords = getPositionX(
+    primaryX,
+    boundsInfo.left,
+    boundsInfo.right,
+    divSize.width,
+  );
 
   const arrowY = -(ARROW_SIZE / 2 + BORDER_SIZE);
   const finalY = primaryY + PADDING_Y;
@@ -417,7 +506,7 @@ function getPositionBelowMetrics(
   return {
     initialX: xCoords.divX,
     initialY: primaryY,
-    finalX: xCoords.divX,  // X position remains constant during animation.
+    finalX: xCoords.divX, // X position remains constant during animation.
     finalY,
     arrowX: xCoords.arrowX,
     arrowY,
@@ -439,19 +528,26 @@ function getPositionBelowMetrics(
  *     and arrow.
  */
 function getPositionAboveMetrics(
-    secondaryX: number, secondaryY: number, boundsInfo: BoundsInfo,
-    divSize: Size): PositionMetrics {
+  secondaryX: number,
+  secondaryY: number,
+  boundsInfo: BoundsInfo,
+  divSize: Size,
+): PositionMetrics {
   const xCoords = getPositionX(
-      secondaryX, boundsInfo.left, boundsInfo.right, divSize.width);
+    secondaryX,
+    boundsInfo.left,
+    boundsInfo.right,
+    divSize.width,
+  );
 
   const arrowY = divSize.height - BORDER_SIZE * 2 - ARROW_SIZE / 2;
   const finalY = secondaryY - divSize.height - PADDING_Y;
-  const initialY = secondaryY - divSize.height;  // No padding on Y.
+  const initialY = secondaryY - divSize.height; // No padding on Y.
 
   return {
     initialX: xCoords.divX,
     initialY,
-    finalX: xCoords.divX,  // X position remains constant during animation.
+    finalX: xCoords.divX, // X position remains constant during animation.
     finalY,
     arrowX: xCoords.arrowX,
     arrowY,
@@ -472,16 +568,23 @@ function getPositionAboveMetrics(
  *     and arrow.
  */
 function getPositionTopOfPageMetrics(
-    sourceX: number, boundsInfo: BoundsInfo, divSize: Size): PositionMetrics {
-  const xCoords =
-      getPositionX(sourceX, boundsInfo.left, boundsInfo.right, divSize.width);
+  sourceX: number,
+  boundsInfo: BoundsInfo,
+  divSize: Size,
+): PositionMetrics {
+  const xCoords = getPositionX(
+    sourceX,
+    boundsInfo.left,
+    boundsInfo.right,
+    divSize.width,
+  );
 
   // No need to provide arrow-specific information because it won't be visible.
   return {
     initialX: xCoords.divX,
     initialY: 0,
-    finalX: xCoords.divX,  // X position remains constant during animation.
-    finalY: 0,             // Y position remains constant during animation.
+    finalX: xCoords.divX, // X position remains constant during animation.
+    finalY: 0, // Y position remains constant during animation.
     arrowAtTop: null,
     arrowX: null,
     arrowY: null,
@@ -502,8 +605,11 @@ function getPositionTopOfPageMetrics(
  * @internal
  */
 export function getPositionX(
-    sourceX: number, boundsLeft: number, boundsRight: number,
-    divWidth: number): {divX: number, arrowX: number} {
+  sourceX: number,
+  boundsLeft: number,
+  boundsRight: number,
+  divWidth: number,
+): {divX: number; arrowX: number} {
   let divX = sourceX;
   // Offset the topLeft coord so that the dropdowndiv is centered.
   divX -= divWidth / 2;
@@ -518,7 +624,10 @@ export function getPositionX(
   const horizPadding = ARROW_HORIZONTAL_PADDING;
   // Clamp the arrow position so that it stays attached to the dropdowndiv.
   relativeArrowX = math.clamp(
-      horizPadding, relativeArrowX, divWidth - horizPadding - ARROW_SIZE);
+    horizPadding,
+    relativeArrowX,
+    divWidth - horizPadding - ARROW_SIZE,
+  );
 
   return {arrowX: relativeArrowX, divX};
 }
@@ -540,8 +649,10 @@ export function isVisible(): boolean {
  *     animating.
  * @returns True if hidden.
  */
-export function hideIfOwner(
-    divOwner: Field, opt_withoutAnimation?: boolean): boolean {
+export function hideIfOwner<T>(
+  divOwner: Field<T>,
+  opt_withoutAnimation?: boolean,
+): boolean {
   if (owner === divOwner) {
     if (opt_withoutAnimation) {
       hideWithoutAnimation();
@@ -560,7 +671,7 @@ export function hide() {
   div.style.transform = 'translate(0, 0)';
   div.style.opacity = '0';
   // Finish animation - reset all values to default.
-  animateOutTimer = setTimeout(function() {
+  animateOutTimer = setTimeout(function () {
     hideWithoutAnimation();
   }, ANIMATION_TIME * 1000);
   if (onHide) {
@@ -578,16 +689,6 @@ export function hideWithoutAnimation() {
     clearTimeout(animateOutTimer);
   }
 
-  // Reset style properties in case this gets called directly
-  // instead of hide() - see discussion on #2551.
-  div.style.transform = '';
-  div.style.left = '';
-  div.style.top = '';
-  div.style.opacity = '0';
-  div.style.display = 'none';
-  div.style.backgroundColor = '';
-  div.style.borderColor = '';
-
   if (onHide) {
     onHide();
     onHide = null;
@@ -595,15 +696,12 @@ export function hideWithoutAnimation() {
   clearContent();
   owner = null;
 
-  if (renderedClassName) {
-    dom.removeClass(div, renderedClassName);
-    renderedClassName = '';
-  }
-  if (themeClassName) {
-    dom.removeClass(div, themeClassName);
-    themeClassName = '';
-  }
   (common.getMainWorkspace() as WorkspaceSvg).markFocused();
+
+  if (returnEphemeralFocus) {
+    returnEphemeralFocus();
+    returnEphemeralFocus = null;
+  }
 }
 
 /**
@@ -616,20 +714,26 @@ export function hideWithoutAnimation() {
  * @returns True if the menu rendered at the primary origin point.
  */
 function positionInternal(
-    primaryX: number, primaryY: number, secondaryX: number,
-    secondaryY: number): boolean {
-  const metrics =
-      internal.getPositionMetrics(primaryX, primaryY, secondaryX, secondaryY);
+  primaryX: number,
+  primaryY: number,
+  secondaryX: number,
+  secondaryY: number,
+): boolean {
+  const metrics = internal.getPositionMetrics(
+    primaryX,
+    primaryY,
+    secondaryX,
+    secondaryY,
+  );
 
   // Update arrow CSS.
   if (metrics.arrowVisible) {
+    const x = metrics.arrowX;
+    const y = metrics.arrowY;
+    const rotation = metrics.arrowAtTop ? 45 : 225;
     arrow.style.display = '';
-    arrow.style.transform = 'translate(' + metrics.arrowX + 'px,' +
-        metrics.arrowY + 'px) rotate(45deg)';
-    arrow.setAttribute(
-        'class',
-        metrics.arrowAtTop ? 'blocklyDropDownArrow blocklyArrowTop' :
-                             'blocklyDropDownArrow blocklyArrowBottom');
+    arrow.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
+    arrow.setAttribute('class', 'blocklyDropDownArrow');
   } else {
     arrow.style.display = 'none';
   }
@@ -670,8 +774,9 @@ export function repositionForWindowResize() {
   // it.
   if (owner) {
     const block = owner.getSourceBlock() as BlockSvg;
-    const bBox = positionToField ? getScaledBboxOfField(owner) :
-                                   getScaledBboxOfBlock(block);
+    const bBox = positionToField
+      ? getScaledBboxOfField(owner)
+      : getScaledBboxOfBlock(block);
     // If we can fit it, render below the block.
     const primaryX = bBox.left + (bBox.right - bBox.left) / 2;
     const primaryY = bBox.bottom;

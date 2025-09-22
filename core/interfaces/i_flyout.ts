@@ -4,28 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The interface for a flyout.
- *
- * @namespace Blockly.IFlyout
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.IFlyout');
+// Former goog.module ID: Blockly.IFlyout
 
-import type {WorkspaceSvg} from '../workspace_svg.js';
 import type {BlockSvg} from '../block_svg.js';
+import type {FlyoutItem} from '../flyout_item.js';
 import type {Coordinate} from '../utils/coordinate.js';
-import type {FlyoutDefinition} from '../utils/toolbox.js';
 import type {Svg} from '../utils/svg.js';
+import type {FlyoutDefinition} from '../utils/toolbox.js';
+import type {WorkspaceSvg} from '../workspace_svg.js';
+import {IFocusableTree} from './i_focusable_tree.js';
 import type {IRegistrable} from './i_registrable.js';
-
 
 /**
  * Interface for a flyout.
- *
- * @alias Blockly.IFlyout
  */
-export interface IFlyout extends IRegistrable {
+export interface IFlyout extends IRegistrable, IFocusableTree {
   /** Whether the flyout is laid out horizontally or not. */
   horizontalLayout: boolean;
 
@@ -33,7 +26,7 @@ export interface IFlyout extends IRegistrable {
   RTL: boolean;
 
   /** The target workspace */
-  targetWorkspace: WorkspaceSvg|null;
+  targetWorkspace: WorkspaceSvg | null;
 
   /** Margin around the edges of the blocks in the flyout. */
   readonly MARGIN: number;
@@ -53,7 +46,9 @@ export interface IFlyout extends IRegistrable {
    *     or <g>.
    * @returns The flyout's SVG group.
    */
-  createDom(tagName: string|Svg<SVGSVGElement>|Svg<SVGGElement>): SVGElement;
+  createDom(
+    tagName: string | Svg<SVGSVGElement> | Svg<SVGGElement>,
+  ): SVGElement;
 
   /**
    * Initializes the flyout.
@@ -122,7 +117,17 @@ export interface IFlyout extends IRegistrable {
    *     of Nodes, a NodeList, a toolbox definition, or a string with the name
    *     of the dynamic category.
    */
-  show(flyoutDef: FlyoutDefinition|string): void;
+  show(flyoutDef: FlyoutDefinition | string): void;
+
+  /**
+   * Returns the list of flyout items currently present in the flyout.
+   * The `show` method parses the flyout definition into a list of actual
+   * flyout items. This method should return those concrete items, which
+   * may be used for e.g. keyboard navigation.
+   *
+   * @returns List of flyout items.
+   */
+  getContents(): FlyoutItem[];
 
   /**
    * Create a copy of this block on the workspace.

@@ -9,8 +9,7 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.MetricsManager');
+// Former goog.module ID: Blockly.MetricsManager
 
 import type {IFlyout} from './interfaces/i_flyout.js';
 import type {IMetricsManager} from './interfaces/i_metrics_manager.js';
@@ -21,11 +20,8 @@ import {Size} from './utils/size.js';
 import * as toolboxUtils from './utils/toolbox.js';
 import type {WorkspaceSvg} from './workspace_svg.js';
 
-
 /**
  * The manager for all workspace metrics calculations.
- *
- * @alias Blockly.MetricsManager
  */
 export class MetricsManager implements IMetricsManager {
   /** The workspace to calculate metrics for. */
@@ -44,7 +40,7 @@ export class MetricsManager implements IMetricsManager {
    * @returns An object containing width and height attributes, which will both
    *     be zero if elem did not exist.
    */
-  protected getDimensionsPx_(elem: IToolbox|null|IFlyout): Size {
+  protected getDimensionsPx_(elem: IToolbox | null | IFlyout): Size {
     let width = 0;
     let height = 0;
     if (elem) {
@@ -55,16 +51,20 @@ export class MetricsManager implements IMetricsManager {
   }
 
   /**
-   * Gets the width and the height of the flyout on the workspace in pixel
-   * coordinates. Returns 0 for the width and height if the workspace has a
-   * category toolbox instead of a simple toolbox.
+   * Gets the width and the height of the flyout in pixel
+   * coordinates. By default, will get metrics for either a simple flyout (owned
+   * directly by the workspace) or for the flyout owned by the toolbox. If you
+   * pass `opt_own` as `true` then only metrics for the simple flyout will be
+   * returned, and it will return 0 for the width and height if the workspace
+   * has a category toolbox instead of a simple toolbox.
    *
-   * @param opt_own Whether to only return the workspace's own flyout.
+   * @param opt_own Whether to only return the workspace's own flyout metrics.
    * @returns The width and height of the flyout.
    */
   getFlyoutMetrics(opt_own?: boolean): ToolboxMetrics {
-    const flyoutDimensions =
-        this.getDimensionsPx_(this.workspace_.getFlyout(opt_own));
+    const flyoutDimensions = this.getDimensionsPx_(
+      this.workspace_.getFlyout(opt_own),
+    );
     return {
       width: flyoutDimensions.width,
       height: flyoutDimensions.height,
@@ -76,14 +76,14 @@ export class MetricsManager implements IMetricsManager {
    * Gets the width, height and position of the toolbox on the workspace in
    * pixel coordinates. Returns 0 for the width and height if the workspace has
    * a simple toolbox instead of a category toolbox. To get the width and height
-   * of a
-   * simple toolbox @see {@link MetricsManager#getFlyoutMetrics}.
+   * of a simple toolbox, see {@link (MetricsManager:class).getFlyoutMetrics}.
    *
    * @returns The object with the width, height and position of the toolbox.
    */
   getToolboxMetrics(): ToolboxMetrics {
-    const toolboxDimensions =
-        this.getDimensionsPx_(this.workspace_.getToolbox());
+    const toolboxDimensions = this.getDimensionsPx_(
+      this.workspace_.getToolbox(),
+    );
 
     return {
       width: toolboxDimensions.width,
@@ -111,25 +111,25 @@ export class MetricsManager implements IMetricsManager {
    */
   getAbsoluteMetrics(): AbsoluteMetrics {
     let absoluteLeft = 0;
+    let absoluteTop = 0;
+
     const toolboxMetrics = this.getToolboxMetrics();
-    const flyoutMetrics = this.getFlyoutMetrics(true);
-    const doesToolboxExist = !!this.workspace_.getToolbox();
-    const doesFlyoutExist = !!this.workspace_.getFlyout(true);
-    const toolboxPosition =
-        doesToolboxExist ? toolboxMetrics.position : flyoutMetrics.position;
+    const flyoutMetrics = this.getFlyoutMetrics();
+    const respectToolbox = !!this.workspace_.getToolbox();
+    const respectFlyout = !this.workspace_.getFlyout()?.autoClose;
+    const toolboxPosition = respectToolbox
+      ? toolboxMetrics.position
+      : flyoutMetrics.position;
 
     const atLeft = toolboxPosition === toolboxUtils.Position.LEFT;
     const atTop = toolboxPosition === toolboxUtils.Position.TOP;
-    if (doesToolboxExist && atLeft) {
-      absoluteLeft = toolboxMetrics.width;
-    } else if (doesFlyoutExist && atLeft) {
-      absoluteLeft = flyoutMetrics.width;
+    if (atLeft) {
+      if (respectToolbox) absoluteLeft += toolboxMetrics.width;
+      if (respectFlyout) absoluteLeft += flyoutMetrics.width;
     }
-    let absoluteTop = 0;
-    if (doesToolboxExist && atTop) {
-      absoluteTop = toolboxMetrics.height;
-    } else if (doesFlyoutExist && atTop) {
-      absoluteTop = flyoutMetrics.height;
+    if (atTop) {
+      if (respectToolbox) absoluteTop += toolboxMetrics.height;
+      if (respectFlyout) absoluteTop += flyoutMetrics.height;
     }
 
     return {
@@ -151,29 +151,26 @@ export class MetricsManager implements IMetricsManager {
     const scale = opt_getWorkspaceCoordinates ? this.workspace_.scale : 1;
     const svgMetrics = this.getSvgMetrics();
     const toolboxMetrics = this.getToolboxMetrics();
-    const flyoutMetrics = this.getFlyoutMetrics(true);
-    const doesToolboxExist = !!this.workspace_.getToolbox();
-    const toolboxPosition =
-        doesToolboxExist ? toolboxMetrics.position : flyoutMetrics.position;
+    const flyoutMetrics = this.getFlyoutMetrics();
+    const respectToolbox = !!this.workspace_.getToolbox();
+    const respectFlyout = !this.workspace_.getFlyout()?.autoClose;
+    const toolboxPosition = respectToolbox
+      ? toolboxMetrics.position
+      : flyoutMetrics.position;
 
-    if (this.workspace_.getToolbox()) {
-      if (toolboxPosition === toolboxUtils.Position.TOP ||
-          toolboxPosition === toolboxUtils.Position.BOTTOM) {
-        svgMetrics.height -= toolboxMetrics.height;
-      } else if (
-          toolboxPosition === toolboxUtils.Position.LEFT ||
-          toolboxPosition === toolboxUtils.Position.RIGHT) {
-        svgMetrics.width -= toolboxMetrics.width;
-      }
-    } else if (this.workspace_.getFlyout(true)) {
-      if (toolboxPosition === toolboxUtils.Position.TOP ||
-          toolboxPosition === toolboxUtils.Position.BOTTOM) {
-        svgMetrics.height -= flyoutMetrics.height;
-      } else if (
-          toolboxPosition === toolboxUtils.Position.LEFT ||
-          toolboxPosition === toolboxUtils.Position.RIGHT) {
-        svgMetrics.width -= flyoutMetrics.width;
-      }
+    const horizToolbox =
+      toolboxPosition === toolboxUtils.Position.TOP ||
+      toolboxPosition === toolboxUtils.Position.BOTTOM;
+    const vertToolbox =
+      toolboxPosition === toolboxUtils.Position.LEFT ||
+      toolboxPosition === toolboxUtils.Position.RIGHT;
+    if (horizToolbox) {
+      if (respectToolbox) svgMetrics.height -= toolboxMetrics.height;
+      if (respectFlyout) svgMetrics.height -= flyoutMetrics.height;
+    }
+    if (vertToolbox) {
+      if (respectToolbox) svgMetrics.width -= toolboxMetrics.width;
+      if (respectFlyout) svgMetrics.width -= flyoutMetrics.width;
     }
     return {
       height: svgMetrics.height / scale,
@@ -213,8 +210,10 @@ export class MetricsManager implements IMetricsManager {
    */
   hasFixedEdges(): boolean {
     // This exists for optimization of bump logic.
-    return !this.workspace_.isMovableHorizontally() ||
-        !this.workspace_.isMovableVertically();
+    return (
+      !this.workspace_.isMovableHorizontally() ||
+      !this.workspace_.isMovableVertically()
+    );
   }
 
   /**
@@ -225,8 +224,9 @@ export class MetricsManager implements IMetricsManager {
    *     again, if it is needed.
    * @returns The fixed edges of the scroll area.
    */
-  protected getComputedFixedEdges_(opt_viewMetrics?: ContainerRegion):
-      FixedEdges {
+  protected getComputedFixedEdges_(
+    opt_viewMetrics?: ContainerRegion,
+  ): FixedEdges {
     if (!this.hasFixedEdges()) {
       // Return early if there are no edges.
       return {};
@@ -257,8 +257,9 @@ export class MetricsManager implements IMetricsManager {
    * @returns The padded content area.
    */
   protected getPaddedContent_(
-      viewMetrics: ContainerRegion, contentMetrics: ContainerRegion):
-      {top: number, bottom: number, left: number, right: number} {
+    viewMetrics: ContainerRegion,
+    contentMetrics: ContainerRegion,
+  ): {top: number; bottom: number; left: number; right: number} {
     const contentBottom = contentMetrics.top + contentMetrics.height;
     const contentRight = contentMetrics.left + contentMetrics.width;
 
@@ -269,14 +270,22 @@ export class MetricsManager implements IMetricsManager {
 
     // Add a padding around the content that is at least half a screen wide.
     // Ensure padding is wide enough that blocks can scroll over entire screen.
-    const top =
-        Math.min(contentMetrics.top - halfHeight, contentBottom - viewHeight);
-    const left =
-        Math.min(contentMetrics.left - halfWidth, contentRight - viewWidth);
-    const bottom =
-        Math.max(contentBottom + halfHeight, contentMetrics.top + viewHeight);
-    const right =
-        Math.max(contentRight + halfWidth, contentMetrics.left + viewWidth);
+    const top = Math.min(
+      contentMetrics.top - halfHeight,
+      contentBottom - viewHeight,
+    );
+    const left = Math.min(
+      contentMetrics.left - halfWidth,
+      contentRight - viewWidth,
+    );
+    const bottom = Math.max(
+      contentBottom + halfHeight,
+      contentMetrics.top + viewHeight,
+    );
+    const right = Math.max(
+      contentRight + halfWidth,
+      contentMetrics.left + viewWidth,
+    );
 
     return {top, bottom, left, right};
   }
@@ -295,8 +304,10 @@ export class MetricsManager implements IMetricsManager {
    * @returns The metrics for the scroll container.
    */
   getScrollMetrics(
-      opt_getWorkspaceCoordinates?: boolean, opt_viewMetrics?: ContainerRegion,
-      opt_contentMetrics?: ContainerRegion): ContainerRegion {
+    opt_getWorkspaceCoordinates?: boolean,
+    opt_viewMetrics?: ContainerRegion,
+    opt_contentMetrics?: ContainerRegion,
+  ): ContainerRegion {
     const scale = opt_getWorkspaceCoordinates ? this.workspace_.scale : 1;
     const viewMetrics = opt_viewMetrics || this.getViewMetrics(false);
     const contentMetrics = opt_contentMetrics || this.getContentMetrics();
@@ -307,13 +318,15 @@ export class MetricsManager implements IMetricsManager {
 
     // Use combination of fixed bounds and padded content to make scroll area.
     const top =
-        fixedEdges.top !== undefined ? fixedEdges.top : paddedContent.top;
+      fixedEdges.top !== undefined ? fixedEdges.top : paddedContent.top;
     const left =
-        fixedEdges.left !== undefined ? fixedEdges.left : paddedContent.left;
-    const bottom = fixedEdges.bottom !== undefined ? fixedEdges.bottom :
-                                                     paddedContent.bottom;
+      fixedEdges.left !== undefined ? fixedEdges.left : paddedContent.left;
+    const bottom =
+      fixedEdges.bottom !== undefined
+        ? fixedEdges.bottom
+        : paddedContent.bottom;
     const right =
-        fixedEdges.right !== undefined ? fixedEdges.right : paddedContent.right;
+      fixedEdges.right !== undefined ? fixedEdges.right : paddedContent.right;
 
     return {
       top: top / scale,
@@ -378,8 +391,11 @@ export class MetricsManager implements IMetricsManager {
     const absoluteMetrics = this.getAbsoluteMetrics();
     const viewMetrics = this.getViewMetrics();
     const contentMetrics = this.getContentMetrics();
-    const scrollMetrics =
-        this.getScrollMetrics(false, viewMetrics, contentMetrics);
+    const scrollMetrics = this.getScrollMetrics(
+      false,
+      viewMetrics,
+      contentMetrics,
+    );
 
     return {
       contentHeight: contentMetrics.height,
@@ -464,4 +480,7 @@ export type FixedEdges = MetricsManager.FixedEdges;
 export type UiMetrics = MetricsManager.UiMetrics;
 
 registry.register(
-    registry.Type.METRICS_MANAGER, registry.DEFAULT, MetricsManager);
+  registry.Type.METRICS_MANAGER,
+  registry.DEFAULT,
+  MetricsManager,
+);

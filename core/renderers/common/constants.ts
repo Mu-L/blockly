@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * An object that provides constants for rendering blocks.
- *
- * @class
- */
-import * as goog from '../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.blockRendering.ConstantProvider');
+// Former goog.module ID: Blockly.blockRendering.ConstantProvider
 
 import {ConnectionType} from '../../connection_type.js';
 import type {RenderedConnection} from '../../rendered_connection.js';
@@ -20,7 +14,6 @@ import * as dom from '../../utils/dom.js';
 import * as parsing from '../../utils/parsing.js';
 import {Svg} from '../../utils/svg.js';
 import * as svgPaths from '../../utils/svg_paths.js';
-
 
 /** An object containing sizing and path information about outside corners. */
 export interface OutsideCorners {
@@ -60,8 +53,8 @@ export interface PuzzleTab {
   type: number;
   width: number;
   height: number;
-  pathDown: string|((p1: number) => string);
-  pathUp: string|((p1: number) => string);
+  pathDown: string;
+  pathUp: string;
 }
 
 /**
@@ -75,12 +68,16 @@ export interface JaggedTeeth {
 }
 
 export type BaseShape = {
-  type: number; width: number; height: number;
+  type: number;
+  width: number;
+  height: number;
 };
 
 /** An object containing sizing and type information about a dynamic shape. */
 export type DynamicShape = {
-  type: number; width: (p1: number) => number; height: (p1: number) => number;
+  type: number;
+  width: (p1: number) => number;
+  height: (p1: number) => number;
   isDynamic: true;
   connectionOffsetY: (p1: number) => number;
   connectionOffsetX: (p1: number) => number;
@@ -91,7 +88,7 @@ export type DynamicShape = {
 };
 
 /** An object containing sizing and type information about a shape. */
-export type Shape = BaseShape|DynamicShape;
+export type Shape = BaseShape | DynamicShape;
 
 /**
  * Returns whether the shape is dynamic or not.
@@ -103,10 +100,24 @@ export function isDynamicShape(shape: Shape): shape is DynamicShape {
   return (shape as DynamicShape).isDynamic;
 }
 
+/** Returns whether the shape is a puzzle tab or not. */
+export function isPuzzleTab(shape: Shape): shape is PuzzleTab {
+  return (
+    (shape as PuzzleTab).pathDown !== undefined &&
+    (shape as PuzzleTab).pathUp !== undefined
+  );
+}
+
+/** Returns whether the shape is a notch or not. */
+export function isNotch(shape: Shape): shape is Notch {
+  return (
+    (shape as Notch).pathLeft !== undefined &&
+    (shape as Notch).pathRight !== undefined
+  );
+}
+
 /**
  * An object that provides constants for rendering blocks.
- *
- * @alias Blockly.blockRendering.ConstantProvider
  */
 export class ConstantProvider {
   /** The size of an empty spacer. */
@@ -217,13 +228,13 @@ export class ConstantProvider {
    * `setFontConstants_` to be the height of the text based on the font
    * used.
    */
-  FIELD_TEXT_HEIGHT = -1;  // Dynamically set.
+  FIELD_TEXT_HEIGHT = -1; // Dynamically set.
 
   /**
    * Text baseline.  This constant is dynamically set in `setFontConstants_`
    * to be the baseline of the text based on the font used.
    */
-  FIELD_TEXT_BASELINE = -1;  // Dynamically set.
+  FIELD_TEXT_BASELINE = -1; // Dynamically set.
 
   /** A field's border rect corner radius. */
   FIELD_BORDER_RECT_RADIUS = 4;
@@ -239,8 +250,6 @@ export class ConstantProvider {
 
   /**
    * The backing colour of a field's border rect.
-   *
-   * @internal
    */
   FIELD_BORDER_RECT_COLOUR = '#fff';
   FIELD_TEXT_BASELINE_CENTER: boolean;
@@ -282,36 +291,31 @@ export class ConstantProvider {
   FIELD_COLOUR_DEFAULT_WIDTH = 26;
   FIELD_COLOUR_DEFAULT_HEIGHT: number;
   FIELD_CHECKBOX_X_OFFSET: number;
-  /** @internal */
   randomIdentifier: string;
 
   /**
    * The defs tag that contains all filters and patterns for this Blockly
    * instance.
    */
-  private defs_: SVGElement|null = null;
+  private defs: SVGElement | null = null;
 
   /**
    * The ID of the emboss filter, or the empty string if no filter is set.
-   *
-   * @internal
    */
   embossFilterId = '';
 
   /** The <filter> element to use for highlighting, or null if not set. */
-  private embossFilter_: SVGElement|null = null;
+  private embossFilter: SVGElement | null = null;
 
   /**
    * The ID of the disabled pattern, or the empty string if no pattern is set.
-   *
-   * @internal
    */
   disabledPatternId = '';
 
   /**
    * The <pattern> element to use for disabled blocks, or null if not set.
    */
-  private disabledPattern_: SVGElement|null = null;
+  private disabledPattern: SVGElement | null = null;
 
   /**
    * The ID of the debug filter, or the empty string if no pattern is set.
@@ -321,79 +325,59 @@ export class ConstantProvider {
   /**
    * The <filter> element to use for a debug highlight, or null if not set.
    */
-  private debugFilter_: SVGElement|null = null;
+  private debugFilter: SVGElement | null = null;
 
   /** The <style> element to use for injecting renderer specific CSS. */
-  private cssNode_: HTMLStyleElement|null = null;
+  private cssNode: HTMLStyleElement | null = null;
 
   /**
    * Cursor colour.
-   *
-   * @internal
    */
   CURSOR_COLOUR = '#cc0a0a';
 
   /**
    * Immovable marker colour.
-   *
-   * @internal
    */
   MARKER_COLOUR = '#4286f4';
 
   /**
    * Width of the horizontal cursor.
-   *
-   * @internal
    */
   CURSOR_WS_WIDTH = 100;
 
   /**
    * Height of the horizontal cursor.
-   *
-   * @internal
    */
   WS_CURSOR_HEIGHT = 5;
 
   /**
    * Padding around a stack.
-   *
-   * @internal
    */
   CURSOR_STACK_PADDING = 10;
 
   /**
    * Padding around a block.
-   *
-   * @internal
    */
   CURSOR_BLOCK_PADDING = 2;
 
   /**
    * Stroke of the cursor.
-   *
-   * @internal
    */
   CURSOR_STROKE_WIDTH = 4;
 
   /**
    * Whether text input and colour fields fill up the entire source block.
-   *
-   * @internal
    */
   FULL_BLOCK_FIELDS = false;
 
   /**
    * The main colour of insertion markers, in hex.  The block is rendered a
    * transparent grey by changing the fill opacity in CSS.
-   *
-   * @internal
    */
   INSERTION_MARKER_COLOUR = '#000000';
 
   /**
    * The insertion marker opacity.
-   *
-   * @internal
    */
   INSERTION_MARKER_OPACITY = 0.2;
 
@@ -411,10 +395,9 @@ export class ConstantProvider {
   // TODO(b/109816955): remove '!', see go/strict-prop-init-fix.
   OUTSIDE_CORNERS!: OutsideCorners;
   // TODO(b/109816955): remove '!', see go/strict-prop-init-fix.
-  /** @internal */
+
   blockStyles!: {[key: string]: BlockStyle};
 
-  /** @internal */
   constructor() {
     /**
      * Offset from the top of the row for placing fields on inline input rows
@@ -474,17 +457,17 @@ export class ConstantProvider {
 
     /** A dropdown field's SVG arrow datauri. */
     this.FIELD_DROPDOWN_SVG_ARROW_DATAURI =
-        'data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllci' +
-        'AxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMi43MSIgaG' +
-        'VpZ2h0PSI4Ljc5IiB2aWV3Qm94PSIwIDAgMTIuNzEgOC43OSI+PHRpdGxlPmRyb3Bkb3duLW' +
-        'Fycm93PC90aXRsZT48ZyBvcGFjaXR5PSIwLjEiPjxwYXRoIGQ9Ik0xMi43MSwyLjQ0QTIuND' +
-        'EsMi40MSwwLDAsMSwxMiw0LjE2TDguMDgsOC4wOGEyLjQ1LDIuNDUsMCwwLDEtMy40NSwwTD' +
-        'AuNzIsNC4xNkEyLjQyLDIuNDIsMCwwLDEsMCwyLjQ0LDIuNDgsMi40OCwwLDAsMSwuNzEuNz' +
-        'FDMSwwLjQ3LDEuNDMsMCw2LjM2LDBTMTEuNzUsMC40NiwxMiwuNzFBMi40NCwyLjQ0LDAsMC' +
-        'wxLDEyLjcxLDIuNDRaIiBmaWxsPSIjMjMxZjIwIi8+PC9nPjxwYXRoIGQ9Ik02LjM2LDcuNz' +
-        'lhMS40MywxLjQzLDAsMCwxLTEtLjQyTDEuNDIsMy40NWExLjQ0LDEuNDQsMCwwLDEsMC0yYz' +
-        'AuNTYtLjU2LDkuMzEtMC41Niw5Ljg3LDBhMS40NCwxLjQ0LDAsMCwxLDAsMkw3LjM3LDcuMz' +
-        'dBMS40MywxLjQzLDAsMCwxLDYuMzYsNy43OVoiIGZpbGw9IiNmZmYiLz48L3N2Zz4=';
+      'data:image/svg+xml;base64,PHN2ZyBpZD0iTGF5ZXJfMSIgZGF0YS1uYW1lPSJMYXllci' +
+      'AxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMi43MSIgaG' +
+      'VpZ2h0PSI4Ljc5IiB2aWV3Qm94PSIwIDAgMTIuNzEgOC43OSI+PHRpdGxlPmRyb3Bkb3duLW' +
+      'Fycm93PC90aXRsZT48ZyBvcGFjaXR5PSIwLjEiPjxwYXRoIGQ9Ik0xMi43MSwyLjQ0QTIuND' +
+      'EsMi40MSwwLDAsMSwxMiw0LjE2TDguMDgsOC4wOGEyLjQ1LDIuNDUsMCwwLDEtMy40NSwwTD' +
+      'AuNzIsNC4xNkEyLjQyLDIuNDIsMCwwLDEsMCwyLjQ0LDIuNDgsMi40OCwwLDAsMSwuNzEuNz' +
+      'FDMSwwLjQ3LDEuNDMsMCw2LjM2LDBTMTEuNzUsMC40NiwxMiwuNzFBMi40NCwyLjQ0LDAsMC' +
+      'wxLDEyLjcxLDIuNDRaIiBmaWxsPSIjMjMxZjIwIi8+PC9nPjxwYXRoIGQ9Ik02LjM2LDcuNz' +
+      'lhMS40MywxLjQzLDAsMCwxLTEtLjQyTDEuNDIsMy40NWExLjQ0LDEuNDQsMCwwLDEsMC0yYz' +
+      'AuNTYtLjU2LDkuMzEtMC41Niw5Ljg3LDBhMS40NCwxLjQ0LDAsMCwxLDAsMkw3LjM3LDcuMz' +
+      'dBMS40MywxLjQzLDAsMCwxLDYuMzYsNy43OVoiIGZpbGw9IiNmZmYiLz48L3N2Zz4=';
 
     /** A colour field's default height. */
     this.FIELD_COLOUR_DEFAULT_HEIGHT = this.FIELD_BORDER_RECT_HEIGHT;
@@ -495,16 +478,12 @@ export class ConstantProvider {
     /**
      * A random identifier used to ensure a unique ID is used for each
      * filter/pattern for the case of multiple Blockly instances on a page.
-     *
-     * @internal
      */
     this.randomIdentifier = String(Math.random()).substring(2);
   }
 
   /**
    * Initialize shape objects based on the constants set in the constructor.
-   *
-   * @internal
    */
   init() {
     /**
@@ -539,7 +518,6 @@ export class ConstantProvider {
    * Refresh constants properties that depend on the theme.
    *
    * @param theme The current workspace theme.
-   * @internal
    */
   setTheme(theme: Theme) {
     /** The block styles map. */
@@ -563,7 +541,7 @@ export class ConstantProvider {
     this.setComponentConstants_(theme);
 
     this.ADD_START_HATS =
-        theme.startHats !== undefined ? theme.startHats : this.ADD_START_HATS;
+      theme.startHats !== undefined ? theme.startHats : this.ADD_START_HATS;
   }
 
   /**
@@ -585,8 +563,11 @@ export class ConstantProvider {
     }
 
     const fontMetrics = dom.measureFontMetrics(
-        'Hg', this.FIELD_TEXT_FONTSIZE + 'pt', this.FIELD_TEXT_FONTWEIGHT,
-        this.FIELD_TEXT_FONTFAMILY);
+      'Hg',
+      this.FIELD_TEXT_FONTSIZE + 'pt',
+      this.FIELD_TEXT_FONTWEIGHT,
+      this.FIELD_TEXT_FONTFAMILY,
+    );
 
     this.FIELD_TEXT_HEIGHT = fontMetrics.height;
     this.FIELD_TEXT_BASELINE = fontMetrics.baseline;
@@ -599,15 +580,15 @@ export class ConstantProvider {
    */
   protected setComponentConstants_(theme: Theme) {
     this.CURSOR_COLOUR =
-        theme.getComponentStyle('cursorColour') || this.CURSOR_COLOUR;
+      theme.getComponentStyle('cursorColour') || this.CURSOR_COLOUR;
     this.MARKER_COLOUR =
-        theme.getComponentStyle('markerColour') || this.MARKER_COLOUR;
+      theme.getComponentStyle('markerColour') || this.MARKER_COLOUR;
     this.INSERTION_MARKER_COLOUR =
-        theme.getComponentStyle('insertionMarkerColour') ||
-        this.INSERTION_MARKER_COLOUR;
+      theme.getComponentStyle('insertionMarkerColour') ||
+      this.INSERTION_MARKER_COLOUR;
     this.INSERTION_MARKER_OPACITY =
-        Number(theme.getComponentStyle('insertionMarkerOpacity')) ||
-        this.INSERTION_MARKER_OPACITY;
+      Number(theme.getComponentStyle('insertionMarkerOpacity')) ||
+      this.INSERTION_MARKER_OPACITY;
   }
 
   /**
@@ -617,9 +598,8 @@ export class ConstantProvider {
    * @param colour #RRGGBB colour string.
    * @returns An object containing the style and an autogenerated name for that
    *     style.
-   * @internal
    */
-  getBlockStyleForColour(colour: string): {style: BlockStyle, name: string} {
+  getBlockStyleForColour(colour: string): {style: BlockStyle; name: string} {
     const name = 'auto_' + colour;
     if (!this.blockStyles[name]) {
       this.blockStyles[name] = this.createBlockStyle_(colour);
@@ -634,11 +614,13 @@ export class ConstantProvider {
    * @returns The named block style, or a default style if no style with the
    *     given name was found.
    */
-  getBlockStyle(blockStyleName: string|null): BlockStyle {
-    return this.blockStyles[blockStyleName || ''] ||
-        (blockStyleName && blockStyleName.indexOf('auto_') === 0 ?
-             this.getBlockStyleForColour(blockStyleName.substring(5)).style :
-             this.createBlockStyle_('#000000'));
+  getBlockStyle(blockStyleName: string | null): BlockStyle {
+    return (
+      this.blockStyles[blockStyleName || ''] ||
+      (blockStyleName && blockStyleName.startsWith('auto_')
+        ? this.getBlockStyleForColour(blockStyleName.substring(5)).style
+        : this.createBlockStyle_('#000000'))
+    );
   }
 
   /**
@@ -658,27 +640,23 @@ export class ConstantProvider {
    * @param blockStyle A full or partial block style object.
    * @returns A full block style object, with all required properties populated.
    */
-  protected validatedBlockStyle_(blockStyle: {
-    colourPrimary: string,
-    colourSecondary?: string,
-    colourTertiary?: string,
-    hat?: string
-  }): BlockStyle {
+  protected validatedBlockStyle_(blockStyle: Partial<BlockStyle>): BlockStyle {
     // Make a new object with all of the same properties.
     const valid = {} as BlockStyle;
     if (blockStyle) {
       Object.assign(valid, blockStyle);
     }
     // Validate required properties.
-    const parsedColour =
-        parsing.parseBlockColour(valid['colourPrimary'] || '#000');
+    const parsedColour = parsing.parseBlockColour(
+      valid['colourPrimary'] || '#000',
+    );
     valid.colourPrimary = parsedColour.hex;
-    valid.colourSecondary = valid['colourSecondary'] ?
-        parsing.parseBlockColour(valid['colourSecondary']).hex :
-        this.generateSecondaryColour_(valid.colourPrimary);
-    valid.colourTertiary = valid['colourTertiary'] ?
-        parsing.parseBlockColour(valid['colourTertiary']).hex :
-        this.generateTertiaryColour_(valid.colourPrimary);
+    valid.colourSecondary = valid['colourSecondary']
+      ? parsing.parseBlockColour(valid['colourSecondary']).hex
+      : this.generateSecondaryColour_(valid.colourPrimary);
+    valid.colourTertiary = valid['colourTertiary']
+      ? parsing.parseBlockColour(valid['colourTertiary']).hex
+      : this.generateTertiaryColour_(valid.colourPrimary);
 
     valid.hat = valid['hat'] || '';
     return valid;
@@ -707,28 +685,25 @@ export class ConstantProvider {
   /**
    * Dispose of this constants provider.
    * Delete all DOM elements that this provider created.
-   *
-   * @internal
    */
   dispose() {
-    if (this.embossFilter_) {
-      dom.removeNode(this.embossFilter_);
+    if (this.embossFilter) {
+      dom.removeNode(this.embossFilter);
     }
-    if (this.disabledPattern_) {
-      dom.removeNode(this.disabledPattern_);
+    if (this.disabledPattern) {
+      dom.removeNode(this.disabledPattern);
     }
-    if (this.debugFilter_) {
-      dom.removeNode(this.debugFilter_);
+    if (this.debugFilter) {
+      dom.removeNode(this.debugFilter);
     }
-    this.cssNode_ = null;
+    this.cssNode = null;
   }
 
   /**
    * @returns An object containing sizing and path information about collapsed
    *     block indicators.
-   * @internal
    */
-  makeJaggedTeeth(): JaggedTeeth {
+  protected makeJaggedTeeth(): JaggedTeeth {
     const height = this.JAGGED_TEETH_HEIGHT;
     const width = this.JAGGED_TEETH_WIDTH;
 
@@ -742,9 +717,8 @@ export class ConstantProvider {
 
   /**
    * @returns An object containing sizing and path information about start hats.
-   * @internal
    */
-  makeStartHat(): StartHat {
+  protected makeStartHat(): StartHat {
     const height = this.START_HAT_HEIGHT;
     const width = this.START_HAT_WIDTH;
 
@@ -753,15 +727,17 @@ export class ConstantProvider {
       svgPaths.point(70, -height),
       svgPaths.point(width, 0),
     ]);
-    return {height, width, path: mainPath};
+    // Height is actually the Y position of the control points defining the
+    // curve of the hat; the hat's actual rendered height is 3/4 of the control
+    // points' Y position, per https://stackoverflow.com/a/5327329
+    return {height: height * 0.75, width, path: mainPath};
   }
 
   /**
    * @returns An object containing sizing and path information about puzzle
    *     tabs.
-   * @internal
    */
-  makePuzzleTab(): PuzzleTab {
+  protected makePuzzleTab(): PuzzleTab {
     const width = this.TAB_WIDTH;
     const height = this.TAB_HEIGHT;
 
@@ -784,20 +760,22 @@ export class ConstantProvider {
       const halfHeight = height / 2;
       const control1Y = halfHeight + overlap;
       const control2Y = halfHeight + 0.5;
-      const control3Y = overlap;  // 2.5
+      const control3Y = overlap; // 2.5
 
       const endPoint1 = svgPaths.point(-width, forward * halfHeight);
       const endPoint2 = svgPaths.point(width, forward * halfHeight);
 
-      return svgPaths.curve(
-                 'c',
-                 [
-                   svgPaths.point(0, forward * control1Y),
-                   svgPaths.point(-width, back * control2Y),
-                   endPoint1,
-                 ]) +
-          svgPaths.curve(
-              's', [svgPaths.point(width, back * control3Y), endPoint2]);
+      return (
+        svgPaths.curve('c', [
+          svgPaths.point(0, forward * control1Y),
+          svgPaths.point(-width, back * control2Y),
+          endPoint1,
+        ]) +
+        svgPaths.curve('s', [
+          svgPaths.point(width, back * control3Y),
+          endPoint2,
+        ])
+      );
     }
 
     // c 0,-10  -8,8  -8,-7.5  s 8,2.5  8,-7.5
@@ -816,9 +794,8 @@ export class ConstantProvider {
 
   /**
    * @returns An object containing sizing and path information about notches.
-   * @internal
    */
-  makeNotch(): Notch {
+  protected makeNotch(): Notch {
     const width = this.NOTCH_WIDTH;
     const height = this.NOTCH_HEIGHT;
     const innerWidth = 3;
@@ -853,16 +830,23 @@ export class ConstantProvider {
   /**
    * @returns An object containing sizing and path information about inside
    *     corners.
-   * @internal
    */
-  makeInsideCorners(): InsideCorners {
+  protected makeInsideCorners(): InsideCorners {
     const radius = this.CORNER_RADIUS;
 
-    const innerTopLeftCorner =
-        svgPaths.arc('a', '0 0,0', radius, svgPaths.point(-radius, radius));
+    const innerTopLeftCorner = svgPaths.arc(
+      'a',
+      '0 0,0',
+      radius,
+      svgPaths.point(-radius, radius),
+    );
 
-    const innerBottomLeftCorner =
-        svgPaths.arc('a', '0 0,0', radius, svgPaths.point(radius, radius));
+    const innerBottomLeftCorner = svgPaths.arc(
+      'a',
+      '0 0,0',
+      radius,
+      svgPaths.point(radius, radius),
+    );
 
     return {
       width: radius,
@@ -875,25 +859,37 @@ export class ConstantProvider {
   /**
    * @returns An object containing sizing and path information about outside
    *     corners.
-   * @internal
    */
-  makeOutsideCorners(): OutsideCorners {
+  protected makeOutsideCorners(): OutsideCorners {
     const radius = this.CORNER_RADIUS;
     /** SVG path for drawing the rounded top-left corner. */
-    const topLeft = svgPaths.moveBy(0, radius) +
-        svgPaths.arc('a', '0 0,1', radius, svgPaths.point(radius, -radius));
+    const topLeft =
+      svgPaths.moveBy(0, radius) +
+      svgPaths.arc('a', '0 0,1', radius, svgPaths.point(radius, -radius));
 
     /** SVG path for drawing the rounded top-right corner. */
-    const topRight =
-        svgPaths.arc('a', '0 0,1', radius, svgPaths.point(radius, radius));
+    const topRight = svgPaths.arc(
+      'a',
+      '0 0,1',
+      radius,
+      svgPaths.point(radius, radius),
+    );
 
     /** SVG path for drawing the rounded bottom-left corner. */
-    const bottomLeft =
-        svgPaths.arc('a', '0 0,1', radius, svgPaths.point(-radius, -radius));
+    const bottomLeft = svgPaths.arc(
+      'a',
+      '0 0,1',
+      radius,
+      svgPaths.point(-radius, -radius),
+    );
 
     /** SVG path for drawing the rounded bottom-right corner. */
-    const bottomRight =
-        svgPaths.arc('a', '0 0,1', radius, svgPaths.point(-radius, radius));
+    const bottomRight = svgPaths.arc(
+      'a',
+      '0 0,1',
+      radius,
+      svgPaths.point(-radius, radius),
+    );
 
     return {
       topLeft,
@@ -910,7 +906,6 @@ export class ConstantProvider {
    *
    * @param connection The connection to find a shape object for
    * @returns The shape object for the connection.
-   * @internal
    */
   shapeFor(connection: RenderedConnection): Shape {
     switch (connection.type) {
@@ -931,11 +926,18 @@ export class ConstantProvider {
    * @param svg The root of the workspace's SVG.
    * @param tagName The name to use for the CSS style tag.
    * @param selector The CSS selector to use.
-   * @suppress {strictModuleDepCheck} Debug renderer only included in
-   * playground.
-   * @internal
+   * @param injectionDivIfIsParent The div containing the parent workspace and
+   *   all related workspaces and block containers, if this renderer is for the
+   *   parent workspace. CSS variables representing SVG patterns will be scoped
+   *   to this container. Child workspaces should not override the CSS variables
+   *   created by the parent and thus do not need access to the injection div.
    */
-  createDom(svg: SVGElement, tagName: string, selector: string) {
+  createDom(
+    svg: SVGElement,
+    tagName: string,
+    selector: string,
+    injectionDivIfIsParent?: HTMLElement,
+  ) {
     this.injectCSS_(tagName, selector);
 
     /*
@@ -943,7 +945,7 @@ export class ConstantProvider {
           ... filters go here ...
         </defs>
         */
-    this.defs_ = dom.createSvgElement(Svg.DEFS, {}, svg);
+    this.defs = dom.createSvgElement(Svg.DEFS, {}, svg);
     /*
           <filter id="blocklyEmbossFilter837493">
             <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
@@ -959,46 +961,57 @@ export class ConstantProvider {
           </filter>
         */
     const embossFilter = dom.createSvgElement(
-        Svg.FILTER, {'id': 'blocklyEmbossFilter' + this.randomIdentifier},
-        this.defs_);
+      Svg.FILTER,
+      {'id': 'blocklyEmbossFilter' + this.randomIdentifier},
+      this.defs,
+    );
     dom.createSvgElement(
-        Svg.FEGAUSSIANBLUR,
-        {'in': 'SourceAlpha', 'stdDeviation': 1, 'result': 'blur'},
-        embossFilter);
+      Svg.FEGAUSSIANBLUR,
+      {'in': 'SourceAlpha', 'stdDeviation': 1, 'result': 'blur'},
+      embossFilter,
+    );
     const feSpecularLighting = dom.createSvgElement(
-        Svg.FESPECULARLIGHTING, {
-          'in': 'blur',
-          'surfaceScale': 1,
-          'specularConstant': 0.5,
-          'specularExponent': 10,
-          'lighting-color': 'white',
-          'result': 'specOut',
-        },
-        embossFilter);
+      Svg.FESPECULARLIGHTING,
+      {
+        'in': 'blur',
+        'surfaceScale': 1,
+        'specularConstant': 0.5,
+        'specularExponent': 10,
+        'lighting-color': 'white',
+        'result': 'specOut',
+      },
+      embossFilter,
+    );
     dom.createSvgElement(
-        Svg.FEPOINTLIGHT, {'x': -5000, 'y': -10000, 'z': 20000},
-        feSpecularLighting);
+      Svg.FEPOINTLIGHT,
+      {'x': -5000, 'y': -10000, 'z': 20000},
+      feSpecularLighting,
+    );
     dom.createSvgElement(
-        Svg.FECOMPOSITE, {
-          'in': 'specOut',
-          'in2': 'SourceAlpha',
-          'operator': 'in',
-          'result': 'specOut',
-        },
-        embossFilter);
+      Svg.FECOMPOSITE,
+      {
+        'in': 'specOut',
+        'in2': 'SourceAlpha',
+        'operator': 'in',
+        'result': 'specOut',
+      },
+      embossFilter,
+    );
     dom.createSvgElement(
-        Svg.FECOMPOSITE, {
-          'in': 'SourceGraphic',
-          'in2': 'specOut',
-          'operator': 'arithmetic',
-          'k1': 0,
-          'k2': 1,
-          'k3': 1,
-          'k4': 0,
-        },
-        embossFilter);
+      Svg.FECOMPOSITE,
+      {
+        'in': 'SourceGraphic',
+        'in2': 'specOut',
+        'operator': 'arithmetic',
+        'k1': 0,
+        'k2': 1,
+        'k3': 1,
+        'k4': 0,
+      },
+      embossFilter,
+    );
     this.embossFilterId = embossFilter.id;
-    this.embossFilter_ = embossFilter;
+    this.embossFilter = embossFilter;
 
     /*
           <pattern id="blocklyDisabledPattern837493"
@@ -1008,22 +1021,47 @@ export class ConstantProvider {
           </pattern>
         */
     const disabledPattern = dom.createSvgElement(
-        Svg.PATTERN, {
-          'id': 'blocklyDisabledPattern' + this.randomIdentifier,
-          'patternUnits': 'userSpaceOnUse',
-          'width': 10,
-          'height': 10,
-        },
-        this.defs_);
+      Svg.PATTERN,
+      {
+        'id': 'blocklyDisabledPattern' + this.randomIdentifier,
+        'patternUnits': 'userSpaceOnUse',
+        'width': 10,
+        'height': 10,
+      },
+      this.defs,
+    );
     dom.createSvgElement(
-        Svg.RECT, {'width': 10, 'height': 10, 'fill': '#aaa'}, disabledPattern);
+      Svg.RECT,
+      {'width': 10, 'height': 10, 'fill': '#aaa'},
+      disabledPattern,
+    );
     dom.createSvgElement(
-        Svg.PATH, {'d': 'M 0 0 L 10 10 M 10 0 L 0 10', 'stroke': '#cc0'},
-        disabledPattern);
+      Svg.PATH,
+      {'d': 'M 0 0 L 10 10 M 10 0 L 0 10', 'stroke': '#cc0'},
+      disabledPattern,
+    );
     this.disabledPatternId = disabledPattern.id;
-    this.disabledPattern_ = disabledPattern;
+    this.disabledPattern = disabledPattern;
 
     this.createDebugFilter();
+
+    if (injectionDivIfIsParent) {
+      // If this renderer is for the parent workspace, add CSS variables scoped
+      // to the injection div referencing the created patterns so that CSS can
+      // apply the patterns to any element in the injection div.
+      injectionDivIfIsParent.style.setProperty(
+        '--blocklyEmbossFilter',
+        `url(#${this.embossFilterId})`,
+      );
+      injectionDivIfIsParent.style.setProperty(
+        '--blocklyDisabledPattern',
+        `url(#${this.disabledPatternId})`,
+      );
+      injectionDivIfIsParent.style.setProperty(
+        '--blocklyDebugFilter',
+        `url(#${this.debugFilterId})`,
+      );
+    }
   }
 
   /**
@@ -1032,41 +1070,51 @@ export class ConstantProvider {
    */
   private createDebugFilter() {
     // Only create the debug filter once.
-    if (!this.debugFilter_) {
+    if (!this.debugFilter) {
       const debugFilter = dom.createSvgElement(
-          Svg.FILTER, {
-            'id': 'blocklyDebugFilter' + this.randomIdentifier,
-            'height': '160%',
-            'width': '180%',
-            'y': '-30%',
-            'x': '-40%',
-          },
-          this.defs_);
+        Svg.FILTER,
+        {
+          'id': 'blocklyDebugFilter' + this.randomIdentifier,
+          'height': '160%',
+          'width': '180%',
+          'y': '-30%',
+          'x': '-40%',
+        },
+        this.defs,
+      );
       // Set all gaussian blur pixels to 1 opacity before applying flood
       const debugComponentTransfer = dom.createSvgElement(
-          Svg.FECOMPONENTTRANSFER, {'result': 'outBlur'}, debugFilter);
+        Svg.FECOMPONENTTRANSFER,
+        {'result': 'outBlur'},
+        debugFilter,
+      );
       dom.createSvgElement(
-          Svg.FEFUNCA,
-          {'type': 'table', 'tableValues': '0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'},
-          debugComponentTransfer);
+        Svg.FEFUNCA,
+        {'type': 'table', 'tableValues': '0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1'},
+        debugComponentTransfer,
+      );
       // Color the highlight
       dom.createSvgElement(
-          Svg.FEFLOOD, {
-            'flood-color': '#ff0000',
-            'flood-opacity': 0.5,
-            'result': 'outColor',
-          },
-          debugFilter);
+        Svg.FEFLOOD,
+        {
+          'flood-color': '#ff0000',
+          'flood-opacity': 0.5,
+          'result': 'outColor',
+        },
+        debugFilter,
+      );
       dom.createSvgElement(
-          Svg.FECOMPOSITE, {
-            'in': 'outColor',
-            'in2': 'outBlur',
-            'operator': 'in',
-            'result': 'outGlow',
-          },
-          debugFilter);
+        Svg.FECOMPOSITE,
+        {
+          'in': 'outColor',
+          'in2': 'outBlur',
+          'operator': 'in',
+          'result': 'outGlow',
+        },
+        debugFilter,
+      );
       this.debugFilterId = debugFilter.id;
-      this.debugFilter_ = debugFilter;
+      this.debugFilter = debugFilter;
     }
   }
 
@@ -1079,20 +1127,20 @@ export class ConstantProvider {
   protected injectCSS_(tagName: string, selector: string) {
     const cssArray = this.getCSS_(selector);
     const cssNodeId = 'blockly-renderer-style-' + tagName;
-    this.cssNode_ = document.getElementById(cssNodeId) as HTMLStyleElement;
+    this.cssNode = document.getElementById(cssNodeId) as HTMLStyleElement;
     const text = cssArray.join('\n');
-    if (this.cssNode_) {
+    if (this.cssNode) {
       // Already injected, update if the theme changed.
-      this.cssNode_.firstChild!.textContent = text;
+      this.cssNode.firstChild!.textContent = text;
       return;
     }
     // Inject CSS tag at start of head.
-    const cssNode = (document.createElement('style'));
+    const cssNode = document.createElement('style');
     cssNode.id = cssNodeId;
     const cssTextNode = document.createTextNode(text);
     cssNode.appendChild(cssTextNode);
     document.head.insertBefore(cssNode, document.head.firstChild);
-    this.cssNode_ = cssNode;
+    this.cssNode = cssNode;
   }
 
   /**
@@ -1102,9 +1150,8 @@ export class ConstantProvider {
    * @returns Array of CSS strings.
    */
   protected getCSS_(selector: string): string[] {
+    // prettier-ignore
     return [
-      /* eslint-disable indent */
-      /* clang-format off */
       // Text.
       `${selector} .blocklyText, `,
       `${selector} .blocklyFlyoutLabelText {`,
@@ -1116,14 +1163,14 @@ export class ConstantProvider {
       `${selector} .blocklyText {`,
         `fill: #fff;`,
       `}`,
-      `${selector} .blocklyNonEditableText>rect,`,
-      `${selector} .blocklyEditableText>rect {`,
+      `${selector} .blocklyNonEditableField>rect,`,
+      `${selector} .blocklyEditableField>rect {`,
         `fill: ${this.FIELD_BORDER_RECT_COLOUR};`,
         `fill-opacity: .6;`,
         `stroke: none;`,
       `}`,
-      `${selector} .blocklyNonEditableText>text,`,
-      `${selector} .blocklyEditableText>text {`,
+      `${selector} .blocklyNonEditableField>text,`,
+      `${selector} .blocklyEditableField>text {`,
         `fill: #000;`,
       `}`,
 
@@ -1138,7 +1185,7 @@ export class ConstantProvider {
       `}`,
 
       // Editable field hover.
-      `${selector} .blocklyEditableText:not(.editing):hover>rect {`,
+      `${selector} .blocklyEditableField:not(.blocklyEditing):hover>rect {`,
         `stroke: #fff;`,
         `stroke-width: 2;`,
       `}`,
@@ -1174,10 +1221,6 @@ export class ConstantProvider {
         `fill-opacity: ${this.INSERTION_MARKER_OPACITY};`,
         `stroke: none;`,
       `}`,
-      /* clang-format on */
-      /* eslint-enable indent */
     ];
   }
 }
-/* clang-format on */
-/* eslint-enable indent */

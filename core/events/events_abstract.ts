@@ -10,27 +10,34 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.Abstract');
+// Former goog.module ID: Blockly.Events.Abstract
 
 import * as common from '../common.js';
 import type {Workspace} from '../workspace.js';
-
-import * as eventUtils from './utils.js';
-
+import {getGroup, getRecordUndo} from './utils.js';
 
 /**
  * Abstract class for an event.
- *
- * @alias Blockly.Events.Abstract
  */
 export abstract class Abstract {
-  /** Whether or not the event is blank (to be populated by fromJson). */
+  /**
+   * Whether or not the event was constructed without necessary parameters
+   * (to be populated by fromJson).
+   */
   abstract isBlank: boolean;
 
   /** The workspace identifier for this event. */
   workspaceId?: string = undefined;
+
+  /**
+   * An ID for the group of events this block is associated with.
+   *
+   * Groups define events that should be treated as an single action from the
+   * user's perspective, and should be undone together.
+   */
   group: string;
+
+  /** Whether this event is undoable or not. */
   recordUndo: boolean;
 
   /** Whether or not the event is a UI event. */
@@ -39,17 +46,9 @@ export abstract class Abstract {
   /** Type of this event. */
   type = '';
 
-  /** @alias Blockly.Events.Abstract */
   constructor() {
-    /**
-     * The event group ID for the group this event belongs to. Groups define
-     * events that should be treated as an single action from the user's
-     * perspective, and should be undone together.
-     */
-    this.group = eventUtils.getGroup();
-
-    /** Sets whether the event should be added to the undo stack. */
-    this.recordUndo = eventUtils.getRecordUndo();
+    this.group = getGroup();
+    this.recordUndo = getRecordUndo();
   }
 
   /**
@@ -65,13 +64,23 @@ export abstract class Abstract {
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of Abstract (like all events), but we can't specify that due to the
+   *     fact that parameters to static methods in subclasses must be
+   *     supertypes of parameters to static methods in superclasses.
+   * @internal
    */
-  fromJson(json: AbstractEventJson) {
-    this.isBlank = false;
-    this.group = json['group'] || '';
+  static fromJson(
+    json: AbstractEventJson,
+    workspace: Workspace,
+    event: any,
+  ): Abstract {
+    event.isBlank = false;
+    event.group = json['group'] || '';
+    event.workspaceId = workspace.id;
+    return event;
   }
 
   /**
@@ -88,15 +97,16 @@ export abstract class Abstract {
    *
    * @param _forward True if run forward, false if run backward (undo).
    */
-  run(_forward: boolean) {}
-  // Defined by subclasses.
+  run(_forward: boolean) {
+    // Defined by subclasses. Cannot be abstract b/c UI events do /not/ define
+    // this.
+  }
 
   /**
    * Get workspace the event belongs to.
    *
    * @returns The workspace the event belongs to.
    * @throws {Error} if workspace is null.
-   * @internal
    */
   getEventWorkspace_(): Workspace {
     let workspace;
@@ -105,8 +115,9 @@ export abstract class Abstract {
     }
     if (!workspace) {
       throw Error(
-          'Workspace is null. Event must have been generated from real' +
-          ' Blockly events.');
+        'Workspace is null. Event must have been generated from real' +
+          ' Blockly events.',
+      );
     }
     return workspace;
   }

@@ -9,23 +9,18 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.ToolboxSeparator');
+// Former goog.module ID: Blockly.ToolboxSeparator
 
 import * as Css from '../css.js';
 import type {IToolbox} from '../interfaces/i_toolbox.js';
 import * as registry from '../registry.js';
 import * as dom from '../utils/dom.js';
 import type * as toolbox from '../utils/toolbox.js';
-
 import {ToolboxItem} from './toolbox_item.js';
-
 
 /**
  * Class for a toolbox separator. This is the thin visual line that appears on
  * the toolbox. This item is not interactable.
- *
- * @alias Blockly.ToolboxSeparator
  */
 export class ToolboxSeparator extends ToolboxItem {
   /** Name used for registering a toolbox separator. */
@@ -34,7 +29,7 @@ export class ToolboxSeparator extends ToolboxItem {
   /** All the CSS class names that are used to create a separator. */
   protected cssConfig_: CssConfig = {'container': 'blocklyTreeSeparator'};
 
-  private htmlDiv_: HTMLDivElement|null = null;
+  private htmlDiv: HTMLDivElement | null = null;
 
   /**
    * @param separatorDef The information needed to create a separator.
@@ -44,7 +39,7 @@ export class ToolboxSeparator extends ToolboxItem {
     super(separatorDef, toolbox);
 
     const cssConfig =
-        separatorDef['cssconfig'] || (separatorDef as any)['cssConfig'];
+      separatorDef['cssconfig'] || (separatorDef as any)['cssConfig'];
     Object.assign(this.cssConfig_, cssConfig);
   }
 
@@ -59,26 +54,30 @@ export class ToolboxSeparator extends ToolboxItem {
    */
   protected createDom_(): HTMLDivElement {
     const container = document.createElement('div');
+    // Ensure that the separator has a tab index to ensure it receives focus
+    // when clicked (since clicking isn't managed by the toolbox).
+    container.tabIndex = -1;
+    container.id = this.getId();
     const className = this.cssConfig_['container'];
     if (className) {
       dom.addClass(container, className);
     }
-    this.htmlDiv_ = container;
+    this.htmlDiv = container;
     return container;
   }
 
   override getDiv() {
-    return this.htmlDiv_ as HTMLDivElement;
+    return this.htmlDiv as HTMLDivElement;
   }
 
   override dispose() {
-    dom.removeNode(this.htmlDiv_ as HTMLDivElement);
+    dom.removeNode(this.htmlDiv as HTMLDivElement);
   }
 }
 
 export namespace ToolboxSeparator {
   export interface CssConfig {
-    container: string|undefined;
+    container: string | undefined;
   }
 }
 
@@ -92,7 +91,7 @@ Css.register(`
   margin: 5px 0;
 }
 
-.blocklyToolboxDiv[layout="h"] .blocklyTreeSeparator {
+.blocklyToolbox[layout="h"] .blocklyTreeSeparator {
   border-right: solid #e5e5e5 1px;
   border-bottom: none;
   height: auto;
@@ -103,5 +102,7 @@ Css.register(`
 `);
 
 registry.register(
-    registry.Type.TOOLBOX_ITEM, ToolboxSeparator.registrationName,
-    ToolboxSeparator);
+  registry.Type.TOOLBOX_ITEM,
+  ToolboxSeparator.registrationName,
+  ToolboxSeparator,
+);

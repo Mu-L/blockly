@@ -11,25 +11,21 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.ConnectionDB');
+// Former goog.module ID: Blockly.ConnectionDB
 
 import {ConnectionType} from './connection_type.js';
 import type {IConnectionChecker} from './interfaces/i_connection_checker.js';
 import type {RenderedConnection} from './rendered_connection.js';
 import type {Coordinate} from './utils/coordinate.js';
 
-
 /**
  * Database of connections.
  * Connections are stored in order of their vertical component.  This way
  * connections in an area may be looked up quickly using a binary search.
- *
- * @alias Blockly.ConnectionDB
  */
 export class ConnectionDB {
   /** Array of connections sorted by y position in workspace units. */
-  private readonly connections_: RenderedConnection[] = [];
+  private readonly connections: RenderedConnection[] = [];
 
   /**
    * @param connectionChecker The workspace's connection type checker, used to
@@ -45,8 +41,8 @@ export class ConnectionDB {
    * @internal
    */
   addConnection(connection: RenderedConnection, yPos: number) {
-    const index = this.calculateIndexForYPos_(yPos);
-    this.connections_.splice(index, 0, connection);
+    const index = this.calculateIndexForYPos(yPos);
+    this.connections.splice(index, 0, connection);
   }
 
   /**
@@ -60,14 +56,16 @@ export class ConnectionDB {
    * @returns The index of the connection, or -1 if the connection was not
    *     found.
    */
-  private findIndexOfConnection_(conn: RenderedConnection, yPos: number):
-      number {
-    if (!this.connections_.length) {
+  private findIndexOfConnection(
+    conn: RenderedConnection,
+    yPos: number,
+  ): number {
+    if (!this.connections.length) {
       return -1;
     }
 
-    const bestGuess = this.calculateIndexForYPos_(yPos);
-    if (bestGuess >= this.connections_.length) {
+    const bestGuess = this.calculateIndexForYPos(yPos);
+    if (bestGuess >= this.connections.length) {
       // Not in list
       return -1;
     }
@@ -75,17 +73,19 @@ export class ConnectionDB {
     yPos = conn.y;
     // Walk forward and back on the y axis looking for the connection.
     let pointer = bestGuess;
-    while (pointer >= 0 && this.connections_[pointer].y === yPos) {
-      if (this.connections_[pointer] === conn) {
+    while (pointer >= 0 && this.connections[pointer].y === yPos) {
+      if (this.connections[pointer] === conn) {
         return pointer;
       }
       pointer--;
     }
 
     pointer = bestGuess;
-    while (pointer < this.connections_.length &&
-           this.connections_[pointer].y === yPos) {
-      if (this.connections_[pointer] === conn) {
+    while (
+      pointer < this.connections.length &&
+      this.connections[pointer].y === yPos
+    ) {
+      if (this.connections[pointer] === conn) {
         return pointer;
       }
       pointer++;
@@ -99,17 +99,17 @@ export class ConnectionDB {
    * @param yPos The y position used to decide where to insert the connection.
    * @returns The candidate index.
    */
-  private calculateIndexForYPos_(yPos: number): number {
-    if (!this.connections_.length) {
+  private calculateIndexForYPos(yPos: number): number {
+    if (!this.connections.length) {
       return 0;
     }
     let pointerMin = 0;
-    let pointerMax = this.connections_.length;
+    let pointerMax = this.connections.length;
     while (pointerMin < pointerMax) {
       const pointerMid = Math.floor((pointerMin + pointerMax) / 2);
-      if (this.connections_[pointerMid].y < yPos) {
+      if (this.connections[pointerMid].y < yPos) {
         pointerMin = pointerMid + 1;
-      } else if (this.connections_[pointerMid].y > yPos) {
+      } else if (this.connections[pointerMid].y > yPos) {
         pointerMax = pointerMid;
       } else {
         pointerMin = pointerMid;
@@ -127,11 +127,11 @@ export class ConnectionDB {
    * @throws {Error} If the connection cannot be found in the database.
    */
   removeConnection(connection: RenderedConnection, yPos: number) {
-    const index = this.findIndexOfConnection_(connection, yPos);
+    const index = this.findIndexOfConnection(connection, yPos);
     if (index === -1) {
       throw Error('Unable to find connection in connectionDB.');
     }
-    this.connections_.splice(index, 1);
+    this.connections.splice(index, 1);
   }
 
   /**
@@ -142,9 +142,11 @@ export class ConnectionDB {
    * @param maxRadius The maximum radius to another connection.
    * @returns List of connections.
    */
-  getNeighbours(connection: RenderedConnection, maxRadius: number):
-      RenderedConnection[] {
-    const db = this.connections_;
+  getNeighbours(
+    connection: RenderedConnection,
+    maxRadius: number,
+  ): RenderedConnection[] {
+    const db = this.connections;
     const currentX = connection.x;
     const currentY = connection.y;
 
@@ -171,7 +173,7 @@ export class ConnectionDB {
      * @returns True if the current connection's vertical distance from the
      *     other connection is less than the allowed radius.
      */
-    function checkConnection_(yIndex: number): boolean {
+    function checkConnection(yIndex: number): boolean {
       const dx = currentX - db[yIndex].x;
       const dy = currentY - db[yIndex].y;
       const r = Math.sqrt(dx * dx + dy * dy);
@@ -185,12 +187,12 @@ export class ConnectionDB {
     pointerMin = pointerMid;
     pointerMax = pointerMid;
     if (db.length) {
-      while (pointerMin >= 0 && checkConnection_(pointerMin)) {
+      while (pointerMin >= 0 && checkConnection(pointerMin)) {
         pointerMin--;
       }
       do {
         pointerMax++;
-      } while (pointerMax < db.length && checkConnection_(pointerMax));
+      } while (pointerMax < db.length && checkConnection(pointerMax));
     }
 
     return neighbours;
@@ -205,9 +207,8 @@ export class ConnectionDB {
    * @param maxRadius The maximum radius to another connection.
    * @returns True if connection is in range.
    */
-  private isInYRange_(index: number, baseY: number, maxRadius: number):
-      boolean {
-    return Math.abs(this.connections_[index].y - baseY) <= maxRadius;
+  private isInYRange(index: number, baseY: number, maxRadius: number): boolean {
+    return Math.abs(this.connections[index].y - baseY) <= maxRadius;
   }
 
   /**
@@ -221,9 +222,11 @@ export class ConnectionDB {
    *     connection or null, and 'radius' which is the distance.
    */
   searchForClosest(
-      conn: RenderedConnection, maxRadius: number,
-      dxy: Coordinate): {connection: RenderedConnection|null, radius: number} {
-    if (!this.connections_.length) {
+    conn: RenderedConnection,
+    maxRadius: number,
+    dxy: Coordinate,
+  ): {connection: RenderedConnection | null; radius: number} {
+    if (!this.connections.length) {
       // Don't bother.
       return {connection: null, radius: maxRadius};
     }
@@ -238,7 +241,7 @@ export class ConnectionDB {
     // calculateIndexForYPos_ finds an index for insertion, which is always
     // after any block with the same y index.  We want to search both forward
     // and back, so search on both sides of the index.
-    const closestIndex = this.calculateIndexForYPos_(conn.y);
+    const closestIndex = this.calculateIndexForYPos(conn.y);
 
     let bestConnection = null;
     let bestRadius = maxRadius;
@@ -246,8 +249,8 @@ export class ConnectionDB {
 
     // Walk forward and back on the y axis looking for the closest x,y point.
     let pointerMin = closestIndex - 1;
-    while (pointerMin >= 0 && this.isInYRange_(pointerMin, conn.y, maxRadius)) {
-      temp = this.connections_[pointerMin];
+    while (pointerMin >= 0 && this.isInYRange(pointerMin, conn.y, maxRadius)) {
+      temp = this.connections[pointerMin];
       if (this.connectionChecker.canConnect(conn, temp, true, bestRadius)) {
         bestConnection = temp;
         bestRadius = temp.distanceFrom(conn);
@@ -256,9 +259,11 @@ export class ConnectionDB {
     }
 
     let pointerMax = closestIndex;
-    while (pointerMax < this.connections_.length &&
-           this.isInYRange_(pointerMax, conn.y, maxRadius)) {
-      temp = this.connections_[pointerMax];
+    while (
+      pointerMax < this.connections.length &&
+      this.isInYRange(pointerMax, conn.y, maxRadius)
+    ) {
+      temp = this.connections[pointerMax];
       if (this.connectionChecker.canConnect(conn, temp, true, bestRadius)) {
         bestConnection = temp;
         bestRadius = temp.distanceFrom(conn);

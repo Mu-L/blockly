@@ -4,23 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Object that defines user-specified options for the workspace.
- *
- * @namespace Blockly.BlocklyOptions
- */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.BlocklyOptions');
+// Former goog.module ID: Blockly.BlocklyOptions
 
-import type {Theme, ITheme} from './theme.js';
-import type {WorkspaceSvg} from './workspace_svg.js';
+import type {ITheme, Theme} from './theme.js';
 import type {ToolboxDefinition} from './utils/toolbox.js';
-
+import type {WorkspaceSvg} from './workspace_svg.js';
 
 /**
  * Blockly options.
- *
- * @alias Blockly.BlocklyOptions
  */
 export interface BlocklyOptions {
   collapse?: boolean;
@@ -32,20 +23,21 @@ export interface BlocklyOptions {
   maxBlocks?: number;
   maxInstances?: {[blockType: string]: number};
   media?: string;
+  modalInputs?: boolean;
   move?: MoveOptions;
   oneBasedIndex?: boolean;
   readOnly?: boolean;
   renderer?: string;
   rendererOverrides?: {[rendererConstant: string]: any};
   rtl?: boolean;
-  scrollbars?: ScrollbarOptions|boolean;
+  scrollbars?: ScrollbarOptions | boolean;
   sounds?: boolean;
-  theme?: Theme|string|ITheme;
-  toolbox?: string|ToolboxDefinition|Element;
+  theme?: Theme | string | ITheme;
+  toolbox?: string | ToolboxDefinition | Element;
   toolboxPosition?: string;
   trashcan?: boolean;
   maxTrashcanContents?: number;
-  plugins?: {[key: string]: (new(...p1: any[]) => any)|string};
+  plugins?: {[key: string]: (new (...p1: any[]) => any) | string};
   zoom?: ZoomOptions;
   parentWorkspace?: WorkspaceSvg;
 }
@@ -59,7 +51,7 @@ export interface GridOptions {
 
 export interface MoveOptions {
   drag?: boolean;
-  scrollbars?: boolean|ScrollbarOptions;
+  scrollbars?: boolean | ScrollbarOptions;
   wheel?: boolean;
 }
 

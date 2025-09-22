@@ -4,16 +4,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Zelos theme.
- *
- * @namespace Blockly.Themes.Zelos
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Themes.Zelos');
+// Former goog.module ID: Blockly.Themes.Zelos
 
 import {Theme} from '../theme.js';
-
 
 const defaultBlockStyles = {
   'colour_blocks': {
@@ -83,7 +76,5 @@ const categoryStyles = {
 
 /**
  * Zelos theme.
- *
- * @alias Blockly.Themes.Zelos
  */
 export const Zelos = new Theme('zelos', defaultBlockStyles, categoryStyles);

@@ -4,42 +4,21 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Handles serializing variables to plain JavaScript objects, only containing
- * state.
- *
- * @namespace Blockly.serialization.variables
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.serialization.variables');
+// Former goog.module ID: Blockly.serialization.variables
 
 import type {ISerializer} from '../interfaces/i_serializer.js';
+import type {IVariableState} from '../interfaces/i_variable_model.js';
+import * as registry from '../registry.js';
 import type {Workspace} from '../workspace.js';
-
 import * as priorities from './priorities.js';
 import * as serializationRegistry from './registry.js';
 
-
-/**
- * Represents the state of a given variable.
- *
- * @alias Blockly.serialization.variables.State
- */
-export interface State {
-  name: string;
-  id: string;
-  type: string|undefined;
-}
-
 /**
  * Serializer for saving and loading variable state.
- *
- * @alias Blockly.serialization.variables.VariableSerializer
  */
-class VariableSerializer implements ISerializer {
+export class VariableSerializer implements ISerializer {
   priority: number;
 
-  /* eslint-disable-next-line require-jsdoc */
   constructor() {
     /** The priority for deserializing variables. */
     this.priority = priorities.VARIABLES;
@@ -52,22 +31,9 @@ class VariableSerializer implements ISerializer {
    * @returns The state of the workspace's variables, or null if there are no
    *     variables.
    */
-  save(workspace: Workspace): State[]|null {
-    const variableStates = [];
-    for (const variable of workspace.getAllVariables()) {
-      const state = {
-        'name': variable.name,
-        'id': variable.getId(),
-      };
-      if (variable.type) {
-        (state as AnyDuringMigration)['type'] = variable.type;
-      }
-      variableStates.push(state);
-    }
-    // AnyDuringMigration because:  Type '{ name: string; id: string; }[] |
-    // null' is not assignable to type 'State[] | null'.
-    return (variableStates.length ? variableStates : null) as
-        AnyDuringMigration;
+  save(workspace: Workspace): IVariableState[] | null {
+    const variableStates = workspace.getAllVariables().map((v) => v.save());
+    return variableStates.length ? variableStates : null;
   }
 
   /**
@@ -77,11 +43,14 @@ class VariableSerializer implements ISerializer {
    * @param state The state of the variables to deserialize.
    * @param workspace The workspace to deserialize into.
    */
-  load(state: State[], workspace: Workspace) {
-    for (const varState of state) {
-      workspace.createVariable(
-          varState['name'], varState['type'], varState['id']);
-    }
+  load(state: IVariableState[], workspace: Workspace) {
+    const VariableModel = registry.getObject(
+      registry.Type.VARIABLE_MODEL,
+      registry.DEFAULT,
+    );
+    state.forEach((s) => {
+      VariableModel?.load(s, workspace);
+    });
   }
 
   /**

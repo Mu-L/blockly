@@ -9,24 +9,24 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.TrashcanOpen');
+// Former goog.module ID: Blockly.Events.TrashcanOpen
 
 import * as registry from '../registry.js';
+import type {Workspace} from '../workspace.js';
 import {AbstractEventJson} from './events_abstract.js';
-
 import {UiBase} from './events_ui_base.js';
-import * as eventUtils from './utils.js';
-
+import {EventType} from './type.js';
 
 /**
- * Class for a trashcan open event.
- *
- * @alias Blockly.Events.TrashcanOpen
+ * Notifies listeners when the trashcan is opening or closing.
  */
 export class TrashcanOpen extends UiBase {
+  /**
+   * True if the trashcan is currently opening (previously closed).
+   * False if it is currently closing (previously open).
+   */
   isOpen?: boolean;
-  override type = eventUtils.TRASHCAN_OPEN;
+  override type = EventType.TRASHCAN_OPEN;
 
   /**
    * @param opt_isOpen Whether the trashcan flyout is opening (false if
@@ -36,8 +36,6 @@ export class TrashcanOpen extends UiBase {
    */
   constructor(opt_isOpen?: boolean, opt_workspaceId?: string) {
     super(opt_workspaceId);
-
-    /** Whether the trashcan flyout is opening (false if closing). */
     this.isOpen = opt_isOpen;
   }
 
@@ -50,21 +48,35 @@ export class TrashcanOpen extends UiBase {
     const json = super.toJson() as TrashcanOpenJson;
     if (this.isOpen === undefined) {
       throw new Error(
-          'Whether this is already open or not is undefined. Either pass ' +
-          'a value to the constructor, or call fromJson');
+        'Whether this is already open or not is undefined. Either pass ' +
+          'a value to the constructor, or call fromJson',
+      );
     }
     json['isOpen'] = this.isOpen;
     return json;
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of TrashcanOpen, but we can't specify that due to the fact that
+   *     parameters to static methods in subclasses must be supertypes of
+   *     parameters to static methods in superclasses.
+   * @internal
    */
-  override fromJson(json: TrashcanOpenJson) {
-    super.fromJson(json);
-    this.isOpen = json['isOpen'];
+  static fromJson(
+    json: TrashcanOpenJson,
+    workspace: Workspace,
+    event?: any,
+  ): TrashcanOpen {
+    const newEvent = super.fromJson(
+      json,
+      workspace,
+      event ?? new TrashcanOpen(),
+    ) as TrashcanOpen;
+    newEvent.isOpen = json['isOpen'];
+    return newEvent;
   }
 }
 
@@ -72,4 +84,4 @@ export interface TrashcanOpenJson extends AbstractEventJson {
   isOpen: boolean;
 }
 
-registry.register(registry.Type.EVENT, eventUtils.TRASHCAN_OPEN, TrashcanOpen);
+registry.register(registry.Type.EVENT, EventType.TRASHCAN_OPEN, TrashcanOpen);

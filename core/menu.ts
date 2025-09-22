@@ -9,65 +9,58 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Menu');
+// Former goog.module ID: Blockly.Menu
 
 import * as browserEvents from './browser_events.js';
-import type {MenuItem} from './menuitem.js';
+import type {MenuSeparator} from './menu_separator.js';
+import {MenuItem} from './menuitem.js';
 import * as aria from './utils/aria.js';
 import {Coordinate} from './utils/coordinate.js';
-import * as dom from './utils/dom.js';
-import {KeyCodes} from './utils/keycodes.js';
 import type {Size} from './utils/size.js';
 import * as style from './utils/style.js';
 
-
 /**
  * A basic menu class.
- *
- * @alias Blockly.Menu
  */
 export class Menu {
   /**
-   * Array of menu items.
-   * (Nulls are never in the array, but typing the array as nullable prevents
-   * the compiler from objecting to .indexOf(null))
+   * Array of menu items and separators.
    */
-  private readonly menuItems_: MenuItem[] = [];
+  private readonly menuItems: Array<MenuItem | MenuSeparator> = [];
 
   /**
-   * Coordinates of the mousedown event that caused this menu to open. Used to
-   * prevent the consequent mouseup event due to a simple click from
+   * Coordinates of the pointerdown event that caused this menu to open. Used to
+   * prevent the consequent pointerup event due to a simple click from
    * activating a menu item immediately.
    */
-  openingCoords: Coordinate|null = null;
+  openingCoords: Coordinate | null = null;
 
   /**
    * This is the element that we will listen to the real focus events on.
    * A value of null means no menu item is highlighted.
    */
-  private highlightedItem_: MenuItem|null = null;
+  private highlightedItem: MenuItem | null = null;
 
-  /** Mouse over event data. */
-  private mouseOverHandler_: browserEvents.Data|null = null;
+  /** Pointer over event data. */
+  private pointerMoveHandler: browserEvents.Data | null = null;
 
   /** Click event data. */
-  private clickHandler_: browserEvents.Data|null = null;
+  private clickHandler: browserEvents.Data | null = null;
 
-  /** Mouse enter event data. */
-  private mouseEnterHandler_: browserEvents.Data|null = null;
+  /** Pointer enter event data. */
+  private pointerEnterHandler: browserEvents.Data | null = null;
 
-  /** Mouse leave event data. */
-  private mouseLeaveHandler_: browserEvents.Data|null = null;
+  /** Pointer leave event data. */
+  private pointerLeaveHandler: browserEvents.Data | null = null;
 
   /** Key down event data. */
-  private onKeyDownHandler_: browserEvents.Data|null = null;
+  private onKeyDownHandler: browserEvents.Data | null = null;
 
   /** The menu's root DOM element. */
-  private element_: HTMLDivElement|null = null;
+  private element: HTMLDivElement | null = null;
 
   /** ARIA name for this menu. */
-  private roleName_: aria.Role|null = null;
+  private roleName: aria.Role | null = null;
 
   /** Constructs a new Menu instance. */
   constructor() {}
@@ -75,11 +68,11 @@ export class Menu {
   /**
    * Add a new menu item to the bottom of this menu.
    *
-   * @param menuItem Menu item to append.
+   * @param menuItem Menu item or separator to append.
    * @internal
    */
-  addChild(menuItem: MenuItem) {
-    this.menuItems_.push(menuItem);
+  addChild(menuItem: MenuItem | MenuSeparator) {
+    this.menuItems.push(menuItem);
   }
 
   /**
@@ -88,32 +81,56 @@ export class Menu {
    * @param container Element upon which to append this menu.
    * @returns The menu's root DOM element.
    */
+
   render(container: Element): HTMLDivElement {
-    const element = (document.createElement('div'));
-    // goog-menu is deprecated, use blocklyMenu.  May 2020.
-    element.className = 'blocklyMenu goog-menu blocklyNonSelectable';
+    const element = document.createElement('div');
+    element.className = 'blocklyMenu';
     element.tabIndex = 0;
-    if (this.roleName_) {
-      aria.setRole(element, this.roleName_);
+    if (this.roleName) {
+      aria.setRole(element, this.roleName);
     }
-    this.element_ = element;
+    this.element = element;
 
     // Add menu items.
-    for (let i = 0, menuItem; menuItem = this.menuItems_[i]; i++) {
+    for (let i = 0, menuItem; (menuItem = this.menuItems[i]); i++) {
       element.appendChild(menuItem.createDom());
     }
 
     // Add event handlers.
-    this.mouseOverHandler_ = browserEvents.conditionalBind(
-        element, 'mouseover', this, this.handleMouseOver_, true);
-    this.clickHandler_ = browserEvents.conditionalBind(
-        element, 'click', this, this.handleClick_, true);
-    this.mouseEnterHandler_ = browserEvents.conditionalBind(
-        element, 'mouseenter', this, this.handleMouseEnter_, true);
-    this.mouseLeaveHandler_ = browserEvents.conditionalBind(
-        element, 'mouseleave', this, this.handleMouseLeave_, true);
-    this.onKeyDownHandler_ = browserEvents.conditionalBind(
-        element, 'keydown', this, this.handleKeyEvent_);
+    this.pointerMoveHandler = browserEvents.conditionalBind(
+      element,
+      'pointermove',
+      this,
+      this.handlePointerMove,
+      true,
+    );
+    this.clickHandler = browserEvents.conditionalBind(
+      element,
+      'pointerup',
+      this,
+      this.handleClick,
+      true,
+    );
+    this.pointerEnterHandler = browserEvents.conditionalBind(
+      element,
+      'pointerenter',
+      this,
+      this.handlePointerEnter,
+      true,
+    );
+    this.pointerLeaveHandler = browserEvents.conditionalBind(
+      element,
+      'pointerleave',
+      this,
+      this.handlePointerLeave,
+      true,
+    );
+    this.onKeyDownHandler = browserEvents.conditionalBind(
+      element,
+      'keydown',
+      this,
+      this.handleKeyEvent,
+    );
 
     container.appendChild(element);
     return element;
@@ -125,8 +142,8 @@ export class Menu {
    * @returns The DOM element.
    * @internal
    */
-  getElement(): HTMLDivElement|null {
-    return this.element_;
+  getElement(): HTMLDivElement | null {
+    return this.element;
   }
 
   /**
@@ -138,16 +155,14 @@ export class Menu {
     const el = this.getElement();
     if (el) {
       el.focus({preventScroll: true});
-      dom.addClass(el, 'blocklyFocused');
     }
   }
 
   /** Blur the menu element. */
-  private blur_() {
+  private blur() {
     const el = this.getElement();
     if (el) {
       el.blur();
-      dom.removeClass(el, 'blocklyFocused');
     }
   }
 
@@ -158,38 +173,38 @@ export class Menu {
    * @internal
    */
   setRole(roleName: aria.Role) {
-    this.roleName_ = roleName;
+    this.roleName = roleName;
   }
 
   /** Dispose of this menu. */
   dispose() {
     // Remove event handlers.
-    if (this.mouseOverHandler_) {
-      browserEvents.unbind(this.mouseOverHandler_);
-      this.mouseOverHandler_ = null;
+    if (this.pointerMoveHandler) {
+      browserEvents.unbind(this.pointerMoveHandler);
+      this.pointerMoveHandler = null;
     }
-    if (this.clickHandler_) {
-      browserEvents.unbind(this.clickHandler_);
-      this.clickHandler_ = null;
+    if (this.clickHandler) {
+      browserEvents.unbind(this.clickHandler);
+      this.clickHandler = null;
     }
-    if (this.mouseEnterHandler_) {
-      browserEvents.unbind(this.mouseEnterHandler_);
-      this.mouseEnterHandler_ = null;
+    if (this.pointerEnterHandler) {
+      browserEvents.unbind(this.pointerEnterHandler);
+      this.pointerEnterHandler = null;
     }
-    if (this.mouseLeaveHandler_) {
-      browserEvents.unbind(this.mouseLeaveHandler_);
-      this.mouseLeaveHandler_ = null;
+    if (this.pointerLeaveHandler) {
+      browserEvents.unbind(this.pointerLeaveHandler);
+      this.pointerLeaveHandler = null;
     }
-    if (this.onKeyDownHandler_) {
-      browserEvents.unbind(this.onKeyDownHandler_);
-      this.onKeyDownHandler_ = null;
+    if (this.onKeyDownHandler) {
+      browserEvents.unbind(this.onKeyDownHandler);
+      this.onKeyDownHandler = null;
     }
 
     // Remove menu items.
-    for (let i = 0, menuItem; menuItem = this.menuItems_[i]; i++) {
+    for (let i = 0, menuItem; (menuItem = this.menuItems[i]); i++) {
       menuItem.dispose();
     }
-    this.element_ = null;
+    this.element = null;
   }
 
   // Child component management.
@@ -201,17 +216,18 @@ export class Menu {
    * @param elem DOM element whose owner is to be returned.
    * @returns Menu item for which the DOM element belongs to.
    */
-  private getMenuItem_(elem: Element): MenuItem|null {
+  private getMenuItem(elem: Element): MenuItem | null {
     const menuElem = this.getElement();
     // Node might be the menu border (resulting in no associated menu item), or
     // a menu item's div, or some element within the menu item.
     // Walk up parents until one meets either the menu's root element, or
     // a menu item's div.
-    let currentElement: Element|null = elem;
+    let currentElement: Element | null = elem;
     while (currentElement && currentElement !== menuElem) {
       if (currentElement.classList.contains('blocklyMenuItem')) {
         // Having found a menu item's div, locate that menu item in this menu.
-        for (let i = 0, menuItem; menuItem = this.menuItems_[i]; i++) {
+        const items = this.getMenuItems();
+        for (let i = 0, menuItem; (menuItem = items[i]); i++) {
           if (menuItem.getElement() === currentElement) {
             return menuItem;
           }
@@ -230,21 +246,23 @@ export class Menu {
    * @param item Item to highlight, or null.
    * @internal
    */
-  setHighlighted(item: MenuItem|null) {
-    const currentHighlighted = this.highlightedItem_;
+  setHighlighted(item: MenuItem | null) {
+    const currentHighlighted = this.highlightedItem;
     if (currentHighlighted) {
       currentHighlighted.setHighlighted(false);
-      this.highlightedItem_ = null;
+      this.highlightedItem = null;
     }
     if (item) {
       item.setHighlighted(true);
-      this.highlightedItem_ = item;
+      this.highlightedItem = item;
       // Bring the highlighted item into view. This has no effect if the menu is
       // not scrollable.
-      const el = this.getElement() as Element;
-      style.scrollIntoContainerView(item.getElement() as Element, el);
+      const menuElement = this.getElement();
+      const menuItemElement = item.getElement();
+      if (!menuElement || !menuItemElement) return;
 
-      aria.setState(el, aria.State.ACTIVEDESCENDANT, item.getId());
+      style.scrollIntoContainerView(menuItemElement, menuElement);
+      aria.setState(menuElement, aria.State.ACTIVEDESCENDANT, item.getId());
     }
   }
 
@@ -255,10 +273,10 @@ export class Menu {
    * @internal
    */
   highlightNext() {
-    const index = this.highlightedItem_ ?
-        this.menuItems_.indexOf(this.highlightedItem_) :
-        -1;
-    this.highlightHelper_(index, 1);
+    const index = this.highlightedItem
+      ? this.menuItems.indexOf(this.highlightedItem)
+      : -1;
+    this.highlightHelper(index, 1);
   }
 
   /**
@@ -268,20 +286,20 @@ export class Menu {
    * @internal
    */
   highlightPrevious() {
-    const index = this.highlightedItem_ ?
-        this.menuItems_.indexOf(this.highlightedItem_) :
-        -1;
-    this.highlightHelper_(index < 0 ? this.menuItems_.length : index, -1);
+    const index = this.highlightedItem
+      ? this.menuItems.indexOf(this.highlightedItem)
+      : -1;
+    this.highlightHelper(index < 0 ? this.menuItems.length : index, -1);
   }
 
   /** Highlights the first highlightable item. */
-  private highlightFirst_() {
-    this.highlightHelper_(-1, 1);
+  private highlightFirst() {
+    this.highlightHelper(-1, 1);
   }
 
   /** Highlights the last highlightable item. */
-  private highlightLast_() {
-    this.highlightHelper_(this.menuItems_.length, -1);
+  private highlightLast() {
+    this.highlightHelper(this.menuItems.length, -1);
   }
 
   /**
@@ -291,10 +309,11 @@ export class Menu {
    * @param startIndex Start index.
    * @param delta Step direction: 1 to go down, -1 to go up.
    */
-  private highlightHelper_(startIndex: number, delta: number) {
+  private highlightHelper(startIndex: number, delta: number) {
     let index = startIndex + delta;
     let menuItem;
-    while (menuItem = this.menuItems_[index]) {
+    const items = this.getMenuItems();
+    while ((menuItem = items[index])) {
       if (menuItem.isEnabled()) {
         this.setHighlighted(menuItem);
         break;
@@ -303,19 +322,31 @@ export class Menu {
     }
   }
 
-  // Mouse events.
+  // Pointer events.
 
   /**
-   * Handles mouseover events. Highlight menuitems as the user hovers over them.
+   * Handles pointermove events. Highlight menu items as the user hovers over
+   * them.
    *
-   * @param e Mouse event to handle.
+   * @param e Pointer event to handle.
    */
-  private handleMouseOver_(e: Event) {
-    const menuItem = this.getMenuItem_(e.target as Element);
+  private handlePointerMove(e: PointerEvent) {
+    // Check whether the pointer actually did move. Move events are triggered if
+    // the element underneath the pointer moves, even if the pointer itself has
+    // remained stationary. In the case where the pointer is hovering over
+    // the menu but the user is navigating through the list of items via the
+    // keyboard and causing items off the end of the menu to scroll into view,
+    // a pointermove event would be triggered due to the pointer now being over
+    // a new child, but we don't want to highlight the item that's now under the
+    // pointer.
+    const delta = Math.max(Math.abs(e.movementX), Math.abs(e.movementY));
+    if (delta === 0) return;
+
+    const menuItem = this.getMenuItem(e.target as Element);
 
     if (menuItem) {
       if (menuItem.isEnabled()) {
-        if (this.highlightedItem_ !== menuItem) {
+        if (this.highlightedItem !== menuItem) {
           this.setHighlighted(menuItem);
         }
       } else {
@@ -329,51 +360,44 @@ export class Menu {
    *
    * @param e Click event to handle.
    */
-  private handleClick_(e: Event) {
+  private handleClick(e: PointerEvent) {
     const oldCoords = this.openingCoords;
     // Clear out the saved opening coords immediately so they're not used twice.
     this.openingCoords = null;
-    // AnyDuringMigration because:  Property 'clientX' does not exist on type
-    // 'Event'.
-    if (oldCoords && typeof (e as AnyDuringMigration).clientX === 'number') {
-      // AnyDuringMigration because:  Property 'clientY' does not exist on type
-      // 'Event'. AnyDuringMigration because:  Property 'clientX' does not exist
-      // on type 'Event'.
-      const newCoords = new Coordinate(
-          (e as AnyDuringMigration).clientX, (e as AnyDuringMigration).clientY);
+    if (oldCoords && typeof e.clientX === 'number') {
+      const newCoords = new Coordinate(e.clientX, e.clientY);
       if (Coordinate.distance(oldCoords, newCoords) < 1) {
-        // This menu was opened by a mousedown and we're handling the consequent
-        // click event. The coords haven't changed, meaning this was the same
-        // opening event. Don't do the usual behavior because the menu just
-        // popped up under the mouse and the user didn't mean to activate this
-        // item.
+        // This menu was opened by a pointerdown and we're handling the
+        // consequent click event. The coords haven't changed, meaning this was
+        // the same opening event. Don't do the usual behavior because the menu
+        // just popped up under the pointer and the user didn't mean to activate
+        // this item.
         return;
       }
     }
 
-    const menuItem = this.getMenuItem_(e.target as Element);
+    const menuItem = this.getMenuItem(e.target as Element);
     if (menuItem) {
-      menuItem.performAction();
+      menuItem.performAction(e);
     }
   }
 
   /**
-   * Handles mouse enter events. Focus the element.
+   * Handles pointer enter events. Focus the element.
    *
-   * @param _e Mouse event to handle.
+   * @param _e Pointer event to handle.
    */
-  private handleMouseEnter_(_e: Event) {
+  private handlePointerEnter(_e: PointerEvent) {
     this.focus();
   }
 
   /**
-   * Handles mouse leave events. Blur and clear highlight.
+   * Handles pointer leave events by clearing the active highlight.
    *
-   * @param _e Mouse event to handle.
+   * @param _e Pointer event to handle.
    */
-  private handleMouseLeave_(_e: Event) {
+  private handlePointerLeave(_e: PointerEvent) {
     if (this.getElement()) {
-      this.blur_();
       this.setHighlighted(null);
     }
   }
@@ -381,56 +405,51 @@ export class Menu {
   // Keyboard events.
 
   /**
-   * Attempts to handle a keyboard event, if the menu item is enabled, by
-   * calling
-   * {@link Menu#handleKeyEventInternal_}.
+   * Attempts to handle a keyboard event.
    *
    * @param e Key event to handle.
    */
-  private handleKeyEvent_(e: Event) {
-    if (!this.menuItems_.length) {
+  private handleKeyEvent(e: Event) {
+    if (!this.menuItems.length) {
       // Empty menu.
       return;
     }
-    // AnyDuringMigration because:  Property 'altKey' does not exist on type
-    // 'Event'. AnyDuringMigration because:  Property 'metaKey' does not exist
-    // on type 'Event'. AnyDuringMigration because:  Property 'ctrlKey' does not
-    // exist on type 'Event'. AnyDuringMigration because:  Property 'shiftKey'
-    // does not exist on type 'Event'.
-    if ((e as AnyDuringMigration).shiftKey ||
-        (e as AnyDuringMigration).ctrlKey ||
-        (e as AnyDuringMigration).metaKey || (e as AnyDuringMigration).altKey) {
+    const keyboardEvent = e as KeyboardEvent;
+    if (
+      keyboardEvent.shiftKey ||
+      keyboardEvent.ctrlKey ||
+      keyboardEvent.metaKey ||
+      keyboardEvent.altKey
+    ) {
       // Do not handle the key event if any modifier key is pressed.
       return;
     }
 
-    const highlighted = this.highlightedItem_;
-    // AnyDuringMigration because:  Property 'keyCode' does not exist on type
-    // 'Event'.
-    switch ((e as AnyDuringMigration).keyCode) {
-      case KeyCodes.ENTER:
-      case KeyCodes.SPACE:
+    const highlighted = this.highlightedItem;
+    switch (keyboardEvent.key) {
+      case 'Enter':
+      case ' ':
         if (highlighted) {
-          highlighted.performAction();
+          highlighted.performAction(e);
         }
         break;
 
-      case KeyCodes.UP:
+      case 'ArrowUp':
         this.highlightPrevious();
         break;
 
-      case KeyCodes.DOWN:
+      case 'ArrowDown':
         this.highlightNext();
         break;
 
-      case KeyCodes.PAGE_UP:
-      case KeyCodes.HOME:
-        this.highlightFirst_();
+      case 'PageUp':
+      case 'Home':
+        this.highlightFirst();
         break;
 
-      case KeyCodes.PAGE_DOWN:
-      case KeyCodes.END:
-        this.highlightLast_();
+      case 'PageDown':
+      case 'End':
+        this.highlightLast();
         break;
 
       default:
@@ -449,10 +468,19 @@ export class Menu {
    * @internal
    */
   getSize(): Size {
-    const menuDom = this.getElement();
-    const menuSize = style.getSize(menuDom as Element);
+    const menuDom = this.getElement() as HTMLDivElement;
+    const menuSize = style.getSize(menuDom);
     // Recalculate height for the total content, not only box height.
-    menuSize.height = menuDom!.scrollHeight;
+    menuSize.height = menuDom.scrollHeight;
     return menuSize;
+  }
+
+  /**
+   * Returns the action menu items (omitting separators) in this menu.
+   *
+   * @returns The MenuItem objects displayed in this menu.
+   */
+  private getMenuItems(): MenuItem[] {
+    return this.menuItems.filter((item) => item instanceof MenuItem);
   }
 }

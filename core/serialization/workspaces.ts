@@ -4,33 +4,25 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Contains top-level functions for serializing workspaces to plain JavaScript
- * objects.
- *
- * @namespace Blockly.serialization.workspaces
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.serialization.workspaces');
+// Former goog.module ID: Blockly.serialization.workspaces
 
+import {EventType} from '../events/type.js';
 import * as eventUtils from '../events/utils.js';
 import type {ISerializer} from '../interfaces/i_serializer.js';
 import * as registry from '../registry.js';
 import * as dom from '../utils/dom.js';
-// eslint-disable-next-line no-unused-vars
 import type {Workspace} from '../workspace.js';
 import {WorkspaceSvg} from '../workspace_svg.js';
-
 
 /**
  * Returns the state of the workspace as a plain JavaScript object.
  *
  * @param workspace The workspace to serialize.
  * @returns The serialized state of the workspace.
- * @alias Blockly.serialization.workspaces.save
  */
-export function save(workspace: Workspace):
-    {[key: string]: AnyDuringMigration} {
+export function save(workspace: Workspace): {
+  [key: string]: AnyDuringMigration;
+} {
   const state = Object.create(null);
   const serializerMap = registry.getAllItems(registry.Type.SERIALIZER, true);
   for (const key in serializerMap) {
@@ -49,20 +41,20 @@ export function save(workspace: Workspace):
  * @param workspace The workspace to add the new state to.
  * @param param1 recordUndo: If true, events triggered by this function will be
  *     undo-able by the user. False by default.
- * @alias Blockly.serialization.workspaces.load
  */
 export function load(
-    state: {[key: string]: AnyDuringMigration}, workspace: Workspace,
-    {recordUndo = false}: {recordUndo?: boolean} = {}) {
+  state: {[key: string]: AnyDuringMigration},
+  workspace: Workspace,
+  {recordUndo = false}: {recordUndo?: boolean} = {},
+) {
   const serializerMap = registry.getAllItems(registry.Type.SERIALIZER, true);
   if (!serializerMap) {
     return;
   }
 
-  const deserializers = Object.entries(serializerMap)
-                            .sort(
-                                (a, b) => (b[1] as ISerializer)!.priority -
-                                    (a[1] as ISerializer)!.priority);
+  const deserializers = Object.entries(serializerMap).sort(
+    (a, b) => (b[1] as ISerializer)!.priority - (a[1] as ISerializer)!.priority,
+  );
 
   const prevRecordUndo = eventUtils.getRecordUndo();
   eventUtils.setRecordUndo(recordUndo);
@@ -83,8 +75,7 @@ export function load(
   }
 
   // reverse() is destructive, so we have to re-reverse to correct the order.
-  for (let [name, deserializer] of deserializers.reverse()) {
-    name = name;
+  for (const [name, deserializer] of deserializers.reverse()) {
     const pluginState = state[name];
     if (pluginState) {
       (deserializer as ISerializer)?.load(state[name], workspace);
@@ -96,7 +87,7 @@ export function load(
   }
   dom.stopTextWidthCache();
 
-  eventUtils.fire(new (eventUtils.get(eventUtils.FINISHED_LOADING))(workspace));
+  eventUtils.fire(new (eventUtils.get(EventType.FINISHED_LOADING))(workspace));
 
   eventUtils.setGroup(existingGroup);
   eventUtils.setRecordUndo(prevRecordUndo);

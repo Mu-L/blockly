@@ -4,23 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The interface for a positionable UI element.
- *
- * @namespace Blockly.IPositionable
- */
-import * as goog from '../../closure/goog/goog.js';
-import type {Rect} from '../utils/rect.js';
+// Former goog.module ID: Blockly.IPositionable
+
 import type {UiMetrics} from '../metrics_manager.js';
-goog.declareModuleId('Blockly.IPositionable');
-
+import type {Rect} from '../utils/rect.js';
 import type {IComponent} from './i_component.js';
-
 
 /**
  * Interface for a component that is positioned on top of the workspace.
- *
- * @alias Blockly.IPositionable
  */
 export interface IPositionable extends IComponent {
   /**
@@ -38,5 +29,5 @@ export interface IPositionable extends IComponent {
    * @returns The UI elements's bounding box. Null if bounding box should be
    *     ignored by other UI elements.
    */
-  getBoundingRectangle(): Rect|null;
+  getBoundingRectangle(): Rect | null;
 }

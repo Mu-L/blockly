@@ -4,16 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Utility methods for math.
- * These methods are not specific to Blockly, and could be factored out into
- * a JavaScript framework such as Closure.
- *
- * @namespace Blockly.utils.math
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.utils.math');
-
+// Former goog.module ID: Blockly.utils.math
 
 /**
  * Converts degrees to radians.
@@ -21,10 +12,9 @@ goog.declareModuleId('Blockly.utils.math');
  *
  * @param angleDegrees Angle in degrees.
  * @returns Angle in radians.
- * @alias Blockly.utils.math.toRadians
  */
 export function toRadians(angleDegrees: number): number {
-  return angleDegrees * Math.PI / 180;
+  return (angleDegrees * Math.PI) / 180;
 }
 
 /**
@@ -33,10 +23,9 @@ export function toRadians(angleDegrees: number): number {
  *
  * @param angleRadians Angle in radians.
  * @returns Angle in degrees.
- * @alias Blockly.utils.math.toDegrees
  */
 export function toDegrees(angleRadians: number): number {
-  return angleRadians * 180 / Math.PI;
+  return (angleRadians * 180) / Math.PI;
 }
 
 /**
@@ -46,10 +35,12 @@ export function toDegrees(angleRadians: number): number {
  * @param number The number to clamp.
  * @param upperBound The desired upper bound.
  * @returns The clamped number.
- * @alias Blockly.utils.math.clamp
  */
 export function clamp(
-    lowerBound: number, number: number, upperBound: number): number {
+  lowerBound: number,
+  number: number,
+  upperBound: number,
+): number {
   if (upperBound < lowerBound) {
     const temp = upperBound;
     upperBound = lowerBound;

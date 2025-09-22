@@ -4,13 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Generators for unique IDs.
- *
- * @namespace Blockly.utils.idGenerator
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.utils.idGenerator');
+// Former goog.module ID: Blockly.utils.idGenerator
 
 /**
  * Legal characters for the universally unique IDs.  Should be all on
@@ -19,8 +13,9 @@ goog.declareModuleId('Blockly.utils.idGenerator');
  * soup will be denied.  That's your failure to properly escape in
  * your own environment.  Issues #251, #625, #682, #1304.
  */
-const soup = '!#$%()*+,-./:;=?@[]^_`{|}~' +
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+const soup =
+  '!#$%()*+,-./:;=?@[]^_`{|}~' +
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 
 /**
  * Namespace object for internal implementations we want to be able to
@@ -59,7 +54,6 @@ let nextId = 0;
  * primarily be used for IDs that end up in the DOM.
  *
  * @returns The next unique identifier.
- * @alias Blockly.utils.idGenerator.getNextUniqueId
  */
 export function getNextUniqueId(): string {
   return 'blockly-' + (nextId++).toString(36);
@@ -70,7 +64,6 @@ export function getNextUniqueId(): string {
  *
  * @see internal.genUid
  * @returns A globally unique ID string.
- * @alias Blockly.utils.idGenerator.genUid
  */
 export function genUid(): string {
   return internal.genUid();

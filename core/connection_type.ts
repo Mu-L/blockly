@@ -4,19 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * An enum for the possible types of connections.
- *
- * @namespace Blockly.ConnectionType
- */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.ConnectionType');
-
+// Former goog.module ID: Blockly.ConnectionType
 
 /**
  * Enum for the type of a connection or input.
- *
- * @alias Blockly.ConnectionType
  */
 export enum ConnectionType {
   // A right-facing value input.  E.g. 'set item to' or 'return'.
@@ -26,5 +17,5 @@ export enum ConnectionType {
   // A down-facing block stack.  E.g. 'if-do' or 'else'.
   NEXT_STATEMENT,
   // An up-facing block stack.  E.g. 'break out of loop'.
-  PREVIOUS_STATEMENT
+  PREVIOUS_STATEMENT,
 }

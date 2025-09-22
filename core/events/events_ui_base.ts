@@ -10,11 +10,9 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.UiBase');
+// Former goog.module ID: Blockly.Events.UiBase
 
 import {Abstract as AbstractEvent} from './events_abstract.js';
-
 
 /**
  * Base class for a UI event.
@@ -22,8 +20,6 @@ import {Abstract as AbstractEvent} from './events_abstract.js';
  * editing to work (e.g. scrolling the workspace, zooming, opening toolbox
  * categories).
  * UI events do not undo or redo.
- *
- * @alias Blockly.Events.UiBase
  */
 export class UiBase extends AbstractEvent {
   override isBlank = true;

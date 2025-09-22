@@ -9,32 +9,36 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.ToolboxCategory');
+// Former goog.module ID: Blockly.ToolboxCategory
 
 import * as Css from '../css.js';
 import type {ICollapsibleToolboxItem} from '../interfaces/i_collapsible_toolbox_item.js';
 import type {ISelectableToolboxItem} from '../interfaces/i_selectable_toolbox_item.js';
 import type {IToolbox} from '../interfaces/i_toolbox.js';
 import type {IToolboxItem} from '../interfaces/i_toolbox_item.js';
-import type {CategoryInfo, DynamicCategoryInfo, FlyoutDefinition, FlyoutItemInfo, FlyoutItemInfoArray, StaticCategoryInfo} from '../utils/toolbox.js';
 import * as registry from '../registry.js';
 import * as aria from '../utils/aria.js';
 import * as colourUtils from '../utils/colour.js';
 import * as dom from '../utils/dom.js';
 import * as parsing from '../utils/parsing.js';
+import type {
+  CategoryInfo,
+  DynamicCategoryInfo,
+  FlyoutDefinition,
+  FlyoutItemInfo,
+  FlyoutItemInfoArray,
+  StaticCategoryInfo,
+} from '../utils/toolbox.js';
 import * as toolbox from '../utils/toolbox.js';
-
 import {ToolboxItem} from './toolbox_item.js';
-
 
 /**
  * Class for a category in a toolbox.
- *
- * @alias Blockly.ToolboxCategory
  */
-export class ToolboxCategory extends ToolboxItem implements
-    ISelectableToolboxItem {
+export class ToolboxCategory
+  extends ToolboxItem
+  implements ISelectableToolboxItem
+{
   /** Name used for registering a toolbox category. */
   static registrationName = 'category';
 
@@ -59,20 +63,20 @@ export class ToolboxCategory extends ToolboxItem implements
   /** The colour of the category. */
   protected colour_ = '';
 
-  /** The html container for the category. */
-  protected htmlDiv_: HTMLDivElement|null = null;
+  /** The HTML container for the category. */
+  protected htmlDiv_: HTMLDivElement | null = null;
 
-  /** The html element for the category row. */
-  protected rowDiv_: HTMLDivElement|null = null;
+  /** The HTML element for the category row. */
+  protected rowDiv_: HTMLDivElement | null = null;
 
-  /** The html element that holds children elements of the category row. */
-  protected rowContents_: HTMLDivElement|null = null;
+  /** The HTML element that holds children elements of the category row. */
+  protected rowContents_: HTMLDivElement | null = null;
 
-  /** The html element for the toolbox icon. */
-  protected iconDom_: Element|null = null;
+  /** The HTML element for the toolbox icon. */
+  protected iconDom_: Element | null = null;
 
-  /** The html element for the toolbox label. */
-  protected labelDom_: Element|null = null;
+  /** The HTML element for the toolbox label. */
+  protected labelDom_: Element | null = null;
   protected cssConfig_: CssConfig;
 
   /** True if the category is meant to be hidden, false otherwise. */
@@ -82,7 +86,7 @@ export class ToolboxCategory extends ToolboxItem implements
   protected isDisabled_ = false;
 
   /** The flyout items for this category. */
-  protected flyoutItems_: string|FlyoutItemInfoArray = [];
+  protected flyoutItems_: string | FlyoutItemInfoArray = [];
 
   /**
    * @param categoryDef The information needed to create a category in the
@@ -92,8 +96,10 @@ export class ToolboxCategory extends ToolboxItem implements
    *     a parent.
    */
   constructor(
-      categoryDef: CategoryInfo, parentToolbox: IToolbox,
-      opt_parent?: ICollapsibleToolboxItem) {
+    categoryDef: CategoryInfo,
+    parentToolbox: IToolbox,
+    opt_parent?: ICollapsibleToolboxItem,
+  ) {
     super(categoryDef, parentToolbox, opt_parent);
 
     /** All the css class names that are used to create a category. */
@@ -124,15 +130,15 @@ export class ToolboxCategory extends ToolboxItem implements
    */
   protected makeDefaultCssConfig_(): CssConfig {
     return {
-      'container': 'blocklyToolboxCategory',
-      'row': 'blocklyTreeRow',
+      'container': 'blocklyToolboxCategoryContainer',
+      'row': 'blocklyToolboxCategory',
       'rowcontentcontainer': 'blocklyTreeRowContentContainer',
-      'icon': 'blocklyTreeIcon',
-      'label': 'blocklyTreeLabel',
-      'contents': 'blocklyToolboxContents',
-      'selected': 'blocklyTreeSelected',
-      'openicon': 'blocklyTreeIconOpen',
-      'closedicon': 'blocklyTreeIconClosed',
+      'icon': 'blocklyToolboxCategoryIcon',
+      'label': 'blocklyToolboxCategoryLabel',
+      'contents': 'blocklyToolboxCategoryGroup',
+      'selected': 'blocklyToolboxSelected',
+      'openicon': 'blocklyToolboxCategoryIconOpen',
+      'closedicon': 'blocklyToolboxCategoryIconClosed',
     };
   }
 
@@ -165,13 +171,15 @@ export class ToolboxCategory extends ToolboxItem implements
    * @param categoryDef The information needed to create a category.
    */
   protected parseCategoryDef_(categoryDef: CategoryInfo) {
-    this.name_ = 'name' in categoryDef ?
-        parsing.replaceMessageReferences(categoryDef['name']) :
-        '';
+    this.name_ =
+      'name' in categoryDef
+        ? parsing.replaceMessageReferences(categoryDef['name'])
+        : '';
     this.colour_ = this.getColour_(categoryDef);
     Object.assign(
-        this.cssConfig_,
-        categoryDef['cssconfig'] || (categoryDef as any)['cssConfig']);
+      this.cssConfig_,
+      categoryDef['cssconfig'] || (categoryDef as any)['cssConfig'],
+    );
   }
 
   /**
@@ -183,7 +191,7 @@ export class ToolboxCategory extends ToolboxItem implements
     this.htmlDiv_ = this.createContainer_();
     aria.setRole(this.htmlDiv_, aria.Role.TREEITEM);
     aria.setState(this.htmlDiv_, aria.State.SELECTED, false);
-    aria.setState(this.htmlDiv_, aria.State.LEVEL, this.level_);
+    aria.setState(this.htmlDiv_, aria.State.LEVEL, this.level_ + 1);
 
     this.rowDiv_ = this.createRowContainer_();
     this.rowDiv_.style.pointerEvents = 'auto';
@@ -217,6 +225,10 @@ export class ToolboxCategory extends ToolboxItem implements
    */
   protected createContainer_(): HTMLDivElement {
     const container = document.createElement('div');
+    // Ensure that the category has a tab index to ensure it receives focus when
+    // clicked (since clicking isn't managed by the toolbox).
+    container.tabIndex = -1;
+    container.id = this.getId();
     const className = this.cssConfig_['container'];
     if (className) {
       dom.addClass(container, className);
@@ -236,10 +248,14 @@ export class ToolboxCategory extends ToolboxItem implements
     if (className) {
       dom.addClass(rowDiv, className);
     }
-    const nestedPadding =
-        `${ToolboxCategory.nestedPadding * this.getLevel()}px`;
-    this.workspace_.RTL ? rowDiv.style.paddingRight = nestedPadding :
-                          rowDiv.style.paddingLeft = nestedPadding;
+    const nestedPadding = `${
+      ToolboxCategory.nestedPadding * this.getLevel()
+    }px`;
+    if (this.workspace_.RTL) {
+      rowDiv.style.paddingRight = nestedPadding;
+    } else {
+      rowDiv.style.paddingLeft = nestedPadding;
+    }
     return rowDiv;
   }
 
@@ -308,7 +324,7 @@ export class ToolboxCategory extends ToolboxItem implements
   protected addColourBorder_(colour: string) {
     if (colour) {
       const border =
-          ToolboxCategory.borderWidth + 'px solid ' + (colour || '#ddd');
+        ToolboxCategory.borderWidth + 'px solid ' + (colour || '#ddd');
       if (this.workspace_.RTL) {
         this.rowDiv_!.style.borderRight = border;
       } else {
@@ -325,17 +341,19 @@ export class ToolboxCategory extends ToolboxItem implements
    */
   protected getColour_(categoryDef: CategoryInfo): string {
     const styleName =
-        categoryDef['categorystyle'] || (categoryDef as any)['categoryStyle'];
+      categoryDef['categorystyle'] || (categoryDef as any)['categoryStyle'];
     const colour = categoryDef['colour'];
 
     if (colour && styleName) {
       console.warn(
-          'Toolbox category "' + this.name_ +
-          '" must not have both a style and a colour');
+        'Toolbox category "' +
+          this.name_ +
+          '" must not have both a style and a colour',
+      );
     } else if (styleName) {
-      return this.getColourfromStyle_(styleName);
+      return this.getColourfromStyle(styleName);
     } else if (colour) {
-      return this.parseColour_(colour);
+      return this.parseColour(colour);
     }
     return '';
   }
@@ -347,15 +365,16 @@ export class ToolboxCategory extends ToolboxItem implements
    * @param styleName Name of the style.
    * @returns The hex colour for the category.
    */
-  private getColourfromStyle_(styleName: string): string {
+  private getColourfromStyle(styleName: string): string {
     const theme = this.workspace_.getTheme();
     if (styleName && theme) {
       const style = theme.categoryStyles[styleName];
       if (style && style.colour) {
-        return this.parseColour_(style.colour);
+        return this.parseColour(style.colour);
       } else {
         console.warn(
-            'Style "' + styleName + '" must exist and contain a colour value');
+          'Style "' + styleName + '" must exist and contain a colour value',
+        );
       }
     }
     return '';
@@ -380,7 +399,7 @@ export class ToolboxCategory extends ToolboxItem implements
    *     reference string pointing to one of those two values.
    * @returns The hex colour for the category.
    */
-  private parseColour_(colourValue: number|string): string {
+  private parseColour(colourValue: number | string): string {
     // Decode the colour for any potential message references
     // (eg. `%{BKY_MATH_HUE}`).
     const colour = parsing.replaceMessageReferences(colourValue);
@@ -397,8 +416,11 @@ export class ToolboxCategory extends ToolboxItem implements
           return hex;
         } else {
           console.warn(
-              'Toolbox category "' + this.name_ +
-              '" has unrecognized colour attribute: ' + colour);
+            'Toolbox category "' +
+              this.name_ +
+              '" has unrecognized colour attribute: ' +
+              colour,
+          );
           return '';
         }
       }
@@ -410,7 +432,7 @@ export class ToolboxCategory extends ToolboxItem implements
    *
    * @param iconDiv The div that holds the icon.
    */
-  protected openIcon_(iconDiv: Element|null) {
+  protected openIcon_(iconDiv: Element | null) {
     if (!iconDiv) {
       return;
     }
@@ -429,7 +451,7 @@ export class ToolboxCategory extends ToolboxItem implements
    *
    * @param iconDiv The div that holds the icon.
    */
-  protected closeIcon_(iconDiv: Element|null) {
+  protected closeIcon_(iconDiv: Element | null) {
     if (!iconDiv) {
       return;
     }
@@ -523,8 +545,9 @@ export class ToolboxCategory extends ToolboxItem implements
     }
     const className = this.cssConfig_['selected'];
     if (isSelected) {
-      const defaultColour =
-          this.parseColour_(ToolboxCategory.defaultBackgroundColour);
+      const defaultColour = this.parseColour(
+        ToolboxCategory.defaultBackgroundColour,
+      );
       this.rowDiv_.style.backgroundColor = this.colour_ || defaultColour;
       if (className) {
         dom.addClass(this.rowDiv_, className);
@@ -546,8 +569,11 @@ export class ToolboxCategory extends ToolboxItem implements
   setDisabled(isDisabled: boolean) {
     this.isDisabled_ = isDisabled;
     this.getDiv()!.setAttribute('disabled', `${isDisabled}`);
-    isDisabled ? this.getDiv()!.setAttribute('disabled', 'true') :
-                 this.getDiv()!.removeAttribute('disabled');
+    if (isDisabled) {
+      this.getDiv()!.setAttribute('disabled', 'true');
+    } else {
+      this.getDiv()!.removeAttribute('disabled');
+    }
   }
 
   /**
@@ -573,7 +599,7 @@ export class ToolboxCategory extends ToolboxItem implements
    *
    * @returns The definition of items to be displayed in the flyout.
    */
-  getContents(): FlyoutItemInfoArray|string {
+  getContents(): FlyoutItemInfoArray | string {
     return this.flyoutItems_;
   }
 
@@ -585,7 +611,7 @@ export class ToolboxCategory extends ToolboxItem implements
    * @param contents The contents to be displayed in the flyout. A string can be
    *     supplied to create a dynamic category.
    */
-  updateFlyoutContents(contents: FlyoutDefinition|string) {
+  updateFlyoutContents(contents: FlyoutDefinition | string) {
     this.flyoutItems_ = [];
 
     if (typeof contents === 'string') {
@@ -602,8 +628,8 @@ export class ToolboxCategory extends ToolboxItem implements
     } else {
       const newDefinition: StaticCategoryInfo = {
         kind: this.toolboxItemDef_.kind,
-        name: 'name' in this.toolboxItemDef_ ? this.toolboxItemDef_['name'] :
-                                               '',
+        name:
+          'name' in this.toolboxItemDef_ ? this.toolboxItemDef_['name'] : '',
         contents: toolbox.convertFlyoutDefToJsonArray(contents),
         id: this.toolboxItemDef_.id,
         categorystyle: this.toolboxItemDef_.categorystyle,
@@ -640,19 +666,19 @@ export type CssConfig = ToolboxCategory.CssConfig;
 
 /** CSS for Toolbox.  See css.js for use. */
 Css.register(`
-.blocklyTreeRow:not(.blocklyTreeSelected):hover {
+.blocklyToolboxCategory:not(.blocklyToolboxSelected):hover {
   background-color: rgba(255, 255, 255, .2);
 }
 
-.blocklyToolboxDiv[layout="h"] .blocklyToolboxCategory {
+.blocklyToolbox[layout="h"] .blocklyToolboxCategoryContainer {
   margin: 1px 5px 1px 0;
 }
 
-.blocklyToolboxDiv[dir="RTL"][layout="h"] .blocklyToolboxCategory {
+.blocklyToolbox[dir="RTL"][layout="h"] .blocklyToolboxCategoryContainer {
   margin: 1px 0 1px 5px;
 }
 
-.blocklyTreeRow {
+.blocklyToolboxCategory {
   height: 22px;
   line-height: 22px;
   margin-bottom: 3px;
@@ -660,12 +686,12 @@ Css.register(`
   white-space: nowrap;
 }
 
-.blocklyToolboxDiv[dir="RTL"] .blocklyTreeRow {
+.blocklyToolbox[dir="RTL"] .blocklyToolboxCategory {
   margin-left: 8px;
   padding-right: 0;
 }
 
-.blocklyTreeIcon {
+.blocklyToolboxCategoryIcon {
   background-image: url(<<<PATH>>>/sprites.png);
   height: 16px;
   vertical-align: middle;
@@ -673,46 +699,48 @@ Css.register(`
   width: 16px;
 }
 
-.blocklyTreeIconClosed {
+.blocklyToolboxCategoryIconClosed {
   background-position: -32px -1px;
 }
 
-.blocklyToolboxDiv[dir="RTL"] .blocklyTreeIconClosed {
+.blocklyToolbox[dir="RTL"] .blocklyToolboxCategoryIconClosed {
   background-position: 0 -1px;
 }
 
-.blocklyTreeSelected>.blocklyTreeIconClosed {
+.blocklyToolboxSelected>.blocklyToolboxCategoryIconClosed {
   background-position: -32px -17px;
 }
 
-.blocklyToolboxDiv[dir="RTL"] .blocklyTreeSelected>.blocklyTreeIconClosed {
+.blocklyToolbox[dir="RTL"] .blocklyToolboxSelected>.blocklyToolboxCategoryIconClosed {
   background-position: 0 -17px;
 }
 
-.blocklyTreeIconOpen {
+.blocklyToolboxCategoryIconOpen {
   background-position: -16px -1px;
 }
 
-.blocklyTreeSelected>.blocklyTreeIconOpen {
+.blocklyToolboxSelected>.blocklyToolboxCategoryIconOpen {
   background-position: -16px -17px;
 }
 
-.blocklyTreeLabel {
+.blocklyToolboxCategoryLabel {
   cursor: default;
   font: 16px sans-serif;
   padding: 0 3px;
   vertical-align: middle;
 }
 
-.blocklyToolboxDelete .blocklyTreeLabel {
+.blocklyToolboxDelete .blocklyToolboxCategoryLabel {
   cursor: url("<<<PATH>>>/handdelete.cur"), auto;
 }
 
-.blocklyTreeSelected .blocklyTreeLabel {
+.blocklyToolboxSelected .blocklyToolboxCategoryLabel {
   color: #fff;
 }
 `);
 
 registry.register(
-    registry.Type.TOOLBOX_ITEM, ToolboxCategory.registrationName,
-    ToolboxCategory);
+  registry.Type.TOOLBOX_ITEM,
+  ToolboxCategory.registrationName,
+  ToolboxCategory,
+);

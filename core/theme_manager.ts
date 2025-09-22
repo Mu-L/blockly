@@ -10,8 +10,7 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.ThemeManager');
+// Former goog.module ID: Blockly.ThemeManager
 
 import type {Theme} from './theme.js';
 import * as arrayUtils from './utils/array.js';
@@ -19,24 +18,23 @@ import * as dom from './utils/dom.js';
 import type {Workspace} from './workspace.js';
 import type {WorkspaceSvg} from './workspace_svg.js';
 
-
 /**
  * Class for storing and updating a workspace's theme and UI components.
- *
- * @alias Blockly.ThemeManager
  */
 export class ThemeManager {
   /** A list of workspaces that are subscribed to this theme. */
-  private subscribedWorkspaces_: Workspace[] = [];
+  private subscribedWorkspaces: Workspace[] = [];
   private componentDB = new Map<string, Component[]>();
-  owner_: AnyDuringMigration;
 
   /**
    * @param workspace The main workspace.
    * @param theme The workspace theme.
    * @internal
    */
-  constructor(private readonly workspace: WorkspaceSvg, private theme: Theme) {}
+  constructor(
+    private readonly workspace: WorkspaceSvg,
+    private theme: Theme,
+  ) {}
 
   /**
    * Get the workspace theme.
@@ -73,7 +71,11 @@ export class ThemeManager {
     }
 
     // Refresh all subscribed workspaces.
-    for (let i = 0, workspace; workspace = this.subscribedWorkspaces_[i]; i++) {
+    for (
+      let i = 0, workspace;
+      (workspace = this.subscribedWorkspaces[i]);
+      i++
+    ) {
       (workspace as WorkspaceSvg).refreshTheme();
     }
 
@@ -83,13 +85,11 @@ export class ThemeManager {
         const element = component.element;
         const propertyName = component.propertyName;
         const style = this.theme && this.theme.getComponentStyle(key);
-        // AnyDuringMigration because:  Property 'style' does not exist on type
-        // 'Element'.
-        (element as AnyDuringMigration).style[propertyName] = style || '';
+        element.style.setProperty(propertyName, style || '');
       }
     }
 
-    for (const workspace of this.subscribedWorkspaces_) {
+    for (const workspace of this.subscribedWorkspaces) {
       (workspace as WorkspaceSvg).hideChaff();
     }
   }
@@ -102,7 +102,7 @@ export class ThemeManager {
    * @internal
    */
   subscribeWorkspace(workspace: Workspace) {
-    this.subscribedWorkspaces_.push(workspace);
+    this.subscribedWorkspaces.push(workspace);
   }
 
   /**
@@ -112,9 +112,10 @@ export class ThemeManager {
    * @internal
    */
   unsubscribeWorkspace(workspace: Workspace) {
-    if (!arrayUtils.removeElem(this.subscribedWorkspaces_, workspace)) {
+    if (!arrayUtils.removeElem(this.subscribedWorkspaces, workspace)) {
       throw Error(
-          'Cannot unsubscribe a workspace that hasn\'t been subscribed.');
+        "Cannot unsubscribe a workspace that hasn't been subscribed.",
+      );
     }
   }
 
@@ -128,7 +129,11 @@ export class ThemeManager {
    * @param propertyName The inline style property name to update.
    * @internal
    */
-  subscribe(element: Element, componentName: string, propertyName: string) {
+  subscribe(
+    element: HTMLElement | SVGElement,
+    componentName: string,
+    propertyName: string,
+  ) {
     if (!this.componentDB.has(componentName)) {
       this.componentDB.set(componentName, []);
     }
@@ -138,9 +143,7 @@ export class ThemeManager {
 
     // Initialize the element with its corresponding theme style.
     const style = this.theme && this.theme.getComponentStyle(componentName);
-    // AnyDuringMigration because:  Property 'style' does not exist on type
-    // 'Element'.
-    (element as AnyDuringMigration).style[propertyName] = style || '';
+    element.style.setProperty(propertyName, style || '');
   }
 
   /**
@@ -149,7 +152,7 @@ export class ThemeManager {
    * @param element The element to unsubscribe.
    * @internal
    */
-  unsubscribe(element: Element) {
+  unsubscribe(element: HTMLElement | SVGElement) {
     if (!element) {
       return;
     }
@@ -170,17 +173,10 @@ export class ThemeManager {
   /**
    * Dispose of this theme manager.
    *
-   * @suppress {checkTypes}
    * @internal
    */
   dispose() {
-    this.owner_ = null;
-    // AnyDuringMigration because:  Type 'null' is not assignable to type
-    // 'Theme'.
-    this.theme = null as AnyDuringMigration;
-    // AnyDuringMigration because:  Type 'null' is not assignable to type
-    // 'Workspace[]'.
-    this.subscribedWorkspaces_ = null as AnyDuringMigration;
+    this.subscribedWorkspaces.length = 0;
     this.componentDB.clear();
   }
 }
@@ -188,7 +184,7 @@ export class ThemeManager {
 export namespace ThemeManager {
   /** The type for a Blockly UI Component. */
   export interface Component {
-    element: Element;
+    element: HTMLElement | SVGElement;
     propertyName: string;
   }
 }

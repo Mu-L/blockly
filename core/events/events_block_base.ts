@@ -9,21 +9,22 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.BlockBase');
+// Former goog.module ID: Blockly.Events.BlockBase
 
 import type {Block} from '../block.js';
-
-import {Abstract as AbstractEvent, AbstractEventJson} from './events_abstract.js';
-
+import type {Workspace} from '../workspace.js';
+import {
+  Abstract as AbstractEvent,
+  AbstractEventJson,
+} from './events_abstract.js';
 
 /**
- * Abstract class for a block event.
- *
- * @alias Blockly.Events.BlockBase
+ * Abstract class for any event related to blocks.
  */
 export class BlockBase extends AbstractEvent {
   override isBlank = true;
+
+  /** The ID of the block associated with this event. */
   blockId?: string;
 
   /**
@@ -32,14 +33,11 @@ export class BlockBase extends AbstractEvent {
    */
   constructor(opt_block?: Block) {
     super();
-    this.isBlank = !!opt_block;
+    this.isBlank = !opt_block;
 
     if (!opt_block) return;
 
-    /** The block ID for the block this event pertains to */
     this.blockId = opt_block.id;
-
-    /** The workspace identifier for this event. */
     this.workspaceId = opt_block.workspace.id;
   }
 
@@ -48,25 +46,39 @@ export class BlockBase extends AbstractEvent {
    *
    * @returns JSON representation.
    */
-  override toJson(): AbstractEventJson {
+  override toJson(): BlockBaseJson {
     const json = super.toJson() as BlockBaseJson;
     if (!this.blockId) {
       throw new Error(
-          'The block ID is undefined. Either pass a block to ' +
-          'the constructor, or call fromJson');
+        'The block ID is undefined. Either pass a block to ' +
+          'the constructor, or call fromJson',
+      );
     }
     json['blockId'] = this.blockId;
     return json;
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of BlockBase, but we can't specify that due to the fact that parameters
+   *     to static methods in subclasses must be supertypes of parameters to
+   *     static methods in superclasses.
+   * @internal
    */
-  override fromJson(json: BlockBaseJson) {
-    super.fromJson(json);
-    this.blockId = json['blockId'];
+  static fromJson(
+    json: BlockBaseJson,
+    workspace: Workspace,
+    event?: any,
+  ): BlockBase {
+    const newEvent = super.fromJson(
+      json,
+      workspace,
+      event ?? new BlockBase(),
+    ) as BlockBase;
+    newEvent.blockId = json['blockId'];
+    return newEvent;
   }
 }
 

@@ -9,24 +9,25 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.ToolboxItemSelect');
+// Former goog.module ID: Blockly.Events.ToolboxItemSelect
 
 import * as registry from '../registry.js';
+import type {Workspace} from '../workspace.js';
 import {AbstractEventJson} from './events_abstract.js';
 import {UiBase} from './events_ui_base.js';
-import * as eventUtils from './utils.js';
-
+import {EventType} from './type.js';
 
 /**
- * Class for a toolbox item select event.
- *
- * @alias Blockly.Events.ToolboxItemSelect
+ * Notifies listeners that a toolbox item has been selected.
  */
 export class ToolboxItemSelect extends UiBase {
+  /** The previously selected toolbox item. */
   oldItem?: string;
+
+  /** The newly selected toolbox item. */
   newItem?: string;
-  override type = eventUtils.TOOLBOX_ITEM_SELECT;
+
+  override type = EventType.TOOLBOX_ITEM_SELECT;
 
   /**
    * @param opt_oldItem The previously selected toolbox item.
@@ -37,14 +38,12 @@ export class ToolboxItemSelect extends UiBase {
    *    Undefined for a blank event.
    */
   constructor(
-      opt_oldItem?: string|null, opt_newItem?: string|null,
-      opt_workspaceId?: string) {
+    opt_oldItem?: string | null,
+    opt_newItem?: string | null,
+    opt_workspaceId?: string,
+  ) {
     super(opt_workspaceId);
-
-    /** The previously selected toolbox item. */
     this.oldItem = opt_oldItem ?? undefined;
-
-    /** The newly selected toolbox item. */
     this.newItem = opt_newItem ?? undefined;
   }
 
@@ -61,14 +60,27 @@ export class ToolboxItemSelect extends UiBase {
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of ToolboxItemSelect, but we can't specify that due to the fact that
+   *     parameters to static methods in subclasses must be supertypes of
+   *     parameters to static methods in superclasses.
+   * @internal
    */
-  override fromJson(json: ToolboxItemSelectJson) {
-    super.fromJson(json);
-    this.oldItem = json['oldItem'];
-    this.newItem = json['newItem'];
+  static fromJson(
+    json: ToolboxItemSelectJson,
+    workspace: Workspace,
+    event?: any,
+  ): ToolboxItemSelect {
+    const newEvent = super.fromJson(
+      json,
+      workspace,
+      event ?? new ToolboxItemSelect(),
+    ) as ToolboxItemSelect;
+    newEvent.oldItem = json['oldItem'];
+    newEvent.newItem = json['newItem'];
+    return newEvent;
   }
 }
 
@@ -78,4 +90,7 @@ export interface ToolboxItemSelectJson extends AbstractEventJson {
 }
 
 registry.register(
-    registry.Type.EVENT, eventUtils.TOOLBOX_ITEM_SELECT, ToolboxItemSelect);
+  registry.Type.EVENT,
+  EventType.TOOLBOX_ITEM_SELECT,
+  ToolboxItemSelect,
+);

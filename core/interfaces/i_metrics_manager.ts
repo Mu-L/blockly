@@ -4,21 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The interface for a metrics manager.
- *
- * @namespace Blockly.IMetricsManager
- */
-import * as goog from '../../closure/goog/goog.js';
-import type {ContainerRegion, ToolboxMetrics, AbsoluteMetrics, UiMetrics} from '../metrics_manager.js';
-import type {Size} from '../utils/size.js';
+// Former goog.module ID: Blockly.IMetricsManager
+
+import type {
+  AbsoluteMetrics,
+  ContainerRegion,
+  ToolboxMetrics,
+  UiMetrics,
+} from '../metrics_manager.js';
 import type {Metrics} from '../utils/metrics.js';
-goog.declareModuleId('Blockly.IMetricsManager');
+import type {Size} from '../utils/size.js';
 
 /**
  * Interface for a metrics manager.
- *
- * @alias Blockly.IMetricsManager
  */
 export interface IMetricsManager {
   /**
@@ -43,15 +41,20 @@ export interface IMetricsManager {
    * @returns The metrics for the scroll container
    */
   getScrollMetrics(
-      opt_getWorkspaceCoordinates?: boolean, opt_viewMetrics?: ContainerRegion,
-      opt_contentMetrics?: ContainerRegion): ContainerRegion;
+    opt_getWorkspaceCoordinates?: boolean,
+    opt_viewMetrics?: ContainerRegion,
+    opt_contentMetrics?: ContainerRegion,
+  ): ContainerRegion;
 
   /**
-   * Gets the width and the height of the flyout on the workspace in pixel
-   * coordinates. Returns 0 for the width and height if the workspace has a
-   * category toolbox instead of a simple toolbox.
+   * Gets the width and the height of the flyout in pixel
+   * coordinates. By default, will get metrics for either a simple flyout (owned
+   * directly by the workspace) or for the flyout owned by the toolbox. If you
+   * pass `opt_own` as `true` then only metrics for the simple flyout will be
+   * returned, and it will return 0 for the width and height if the workspace
+   * has a category toolbox instead of a simple toolbox.
    *
-   * @param opt_own Whether to only return the workspace's own flyout.
+   * @param opt_own Whether to only return the workspace's own flyout metrics.
    * @returns The width and height of the flyout.
    */
   getFlyoutMetrics(opt_own?: boolean): ToolboxMetrics;
@@ -60,8 +63,7 @@ export interface IMetricsManager {
    * Gets the width, height and position of the toolbox on the workspace in
    * pixel coordinates. Returns 0 for the width and height if the workspace has
    * a simple toolbox instead of a category toolbox. To get the width and height
-   * of a
-   * simple toolbox @see {@link IMetricsManager#getFlyoutMetrics}.
+   * of a simple toolbox, see {@link IMetricsManager.getFlyoutMetrics}.
    *
    * @returns The object with the width, height and position of the toolbox.
    */

@@ -4,15 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Helper function for warning developers about deprecations.
- * This method is not specific to Blockly.
- *
- * @namespace Blockly.utils.deprecation
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.utils.deprecation');
+// Former goog.module ID: Blockly.utils.deprecation
 
+// Set of previously-emitted warnings.
+const previousWarnings = new Set();
 
 /**
  * Warn developers that a function or property is deprecated.
@@ -23,16 +18,30 @@ goog.declareModuleId('Blockly.utils.deprecation');
  * @param deletionDate The date of deletion. Prefer 'version n.0.0'
  *     format, and fall back to 'month yyyy' or 'quarter yyyy' format.
  * @param opt_use The name of a function or property to use instead, if any.
- * @alias Blockly.utils.deprecation.warn
  * @internal
  */
 export function warn(
-    name: string, deprecationDate: string, deletionDate: string,
-    opt_use?: string) {
-  let msg = name + ' was deprecated in ' + deprecationDate +
-      ' and will be deleted in ' + deletionDate + '.';
+  name: string,
+  deprecationDate: string,
+  deletionDate: string,
+  opt_use?: string,
+) {
+  let msg =
+    name +
+    ' was deprecated in ' +
+    deprecationDate +
+    ' and will be deleted in ' +
+    deletionDate +
+    '.';
   if (opt_use) {
     msg += '\nUse ' + opt_use + ' instead.';
   }
+
+  // Don't log deprecation warnings multiple times.
+  if (previousWarnings.has(msg)) {
+    return;
+  }
+
+  previousWarnings.add(msg);
   console.warn(msg);
 }

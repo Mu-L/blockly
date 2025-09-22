@@ -4,27 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Objects representing inline inputs with connections on a
- * rendered block.
- *
- * @class
- */
-import * as goog from '../../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.geras.InlineInput');
+// Former goog.module ID: Blockly.geras.InlineInput
 
-/* eslint-disable-next-line no-unused-vars */
-import type {Input} from '../../../input.js';
+import type {Input} from '../../../inputs/input.js';
 import type {ConstantProvider as BaseConstantProvider} from '../../../renderers/common/constants.js';
 import {InlineInput as BaseInlineInput} from '../../../renderers/measurables/inline_input.js';
 import type {ConstantProvider as GerasConstantProvider} from '../constants.js';
 
-
 /**
  * An object containing information about the space an inline input takes up
  * during rendering.
- *
- * @alias Blockly.geras.InlineInput
  */
 export class InlineInput extends BaseInlineInput {
   override constants_: GerasConstantProvider;
@@ -32,7 +21,6 @@ export class InlineInput extends BaseInlineInput {
   /**
    * @param constants The rendering constants provider.
    * @param input The inline input to measure and store information for.
-   * @internal
    */
   constructor(constants: BaseConstantProvider, input: Input) {
     super(constants, input);

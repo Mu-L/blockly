@@ -4,23 +4,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Browser event handling.
- *
- * @namespace Blockly.browserEvents
- */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.browserEvents');
+// Former goog.module ID: Blockly.browserEvents
+
+// Theoretically we could figure out a way to type the event params correctly,
+// but it's not high priority.
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
 
 import * as Touch from './touch.js';
 import * as userAgent from './utils/useragent.js';
 
-
 /**
  * Blockly opaque event data used to unbind events when using
  * `bind` and `conditionalBind`.
- *
- * @alias Blockly.browserEvents.Data
  */
 export type Data = [EventTarget, string, (e: Event) => void][];
 
@@ -51,42 +46,33 @@ const PAGE_MODE_MULTIPLIER = 125;
  * @param opt_noCaptureIdentifier True if triggering on this event should not
  *     block execution of other event handlers on this touch or other
  *     simultaneous touches.  False by default.
- * @param opt_noPreventDefault True if triggering on this event should prevent
- *     the default handler.  False by default.  If opt_noPreventDefault is
- *     provided, opt_noCaptureIdentifier must also be provided.
  * @returns Opaque data that can be passed to unbindEvent_.
- * @alias Blockly.browserEvents.conditionalBind
  */
 export function conditionalBind(
-    node: EventTarget, name: string, thisObject: Object|null, func: Function,
-    opt_noCaptureIdentifier?: boolean, opt_noPreventDefault?: boolean): Data {
-  let handled = false;
+  node: EventTarget,
+  name: string,
+  thisObject: object | null,
+  func: Function,
+  opt_noCaptureIdentifier?: boolean,
+): Data {
   /**
    *
    * @param e
    */
   function wrapFunc(e: Event) {
     const captureIdentifier = !opt_noCaptureIdentifier;
-    // Handle each touch point separately.  If the event was a mouse event, this
-    // will hand back an array with one element, which we're fine handling.
-    const events = Touch.splitEventByTouches(e);
-    for (let i = 0; i < events.length; i++) {
-      const event = events[i];
-      if (captureIdentifier && !Touch.shouldHandleEvent(event)) {
-        continue;
-      }
-      Touch.setClientFromTouch(event);
+
+    if (!(captureIdentifier && !Touch.shouldHandleEvent(e))) {
       if (thisObject) {
-        func.call(thisObject, event);
+        func.call(thisObject, e);
       } else {
-        func(event);
+        func(e);
       }
-      handled = true;
     }
   }
 
   const bindData: Data = [];
-  if (globalThis['PointerEvent'] && name in Touch.TOUCH_MAP) {
+  if (name in Touch.TOUCH_MAP) {
     for (let i = 0; i < Touch.TOUCH_MAP[name].length; i++) {
       const type = Touch.TOUCH_MAP[name][i];
       node.addEventListener(type, wrapFunc, false);
@@ -95,24 +81,6 @@ export function conditionalBind(
   } else {
     node.addEventListener(name, wrapFunc, false);
     bindData.push([node, name, wrapFunc]);
-
-    // Add equivalent touch event.
-    if (name in Touch.TOUCH_MAP) {
-      const touchWrapFunc = (e: Event) => {
-        wrapFunc(e);
-        // Calling preventDefault stops the browser from scrolling/zooming the
-        // page.
-        const preventDef = !opt_noPreventDefault;
-        if (handled && preventDef) {
-          e.preventDefault();
-        }
-      };
-      for (let i = 0; i < Touch.TOUCH_MAP[name].length; i++) {
-        const type = Touch.TOUCH_MAP[name][i];
-        node.addEventListener(type, touchWrapFunc, false);
-        bindData.push([node, type, touchWrapFunc]);
-      }
-    }
   }
   return bindData;
 }
@@ -128,11 +96,13 @@ export function conditionalBind(
  * @param thisObject The value of 'this' in the function.
  * @param func Function to call when event is triggered.
  * @returns Opaque data that can be passed to unbindEvent_.
- * @alias Blockly.browserEvents.bind
  */
 export function bind(
-    node: EventTarget, name: string, thisObject: Object|null,
-    func: Function): Data {
+  node: EventTarget,
+  name: string,
+  thisObject: object | null,
+  func: Function,
+): Data {
   /**
    *
    * @param e
@@ -146,7 +116,7 @@ export function bind(
   }
 
   const bindData: Data = [];
-  if (globalThis['PointerEvent'] && name in Touch.TOUCH_MAP) {
+  if (name in Touch.TOUCH_MAP) {
     for (let i = 0; i < Touch.TOUCH_MAP[name].length; i++) {
       const type = Touch.TOUCH_MAP[name][i];
       node.addEventListener(type, wrapFunc, false);
@@ -155,32 +125,6 @@ export function bind(
   } else {
     node.addEventListener(name, wrapFunc, false);
     bindData.push([node, name, wrapFunc]);
-
-    // Add equivalent touch event.
-    if (name in Touch.TOUCH_MAP) {
-      const touchWrapFunc = (e: Event) => {
-        // Punt on multitouch events.
-        if (e instanceof TouchEvent && e.changedTouches &&
-            e.changedTouches.length === 1) {
-          // Map the touch event's properties to the event.
-          const touchPoint = e.changedTouches[0];
-          // TODO (6311): We are trying to make a touch event look like a mouse
-          //   event, which is not allowed, because it requires adding more
-          //   properties to the event. How do we want to deal with this?
-          (e as AnyDuringMigration).clientX = touchPoint.clientX;
-          (e as AnyDuringMigration).clientY = touchPoint.clientY;
-        }
-        wrapFunc(e);
-
-        // Stop the browser from scrolling/zooming the page.
-        e.preventDefault();
-      };
-      for (let i = 0; i < Touch.TOUCH_MAP[name].length; i++) {
-        const type = Touch.TOUCH_MAP[name][i];
-        node.addEventListener(type, touchWrapFunc, false);
-        bindData.push([node, type, touchWrapFunc]);
-      }
-    }
   }
   return bindData;
 }
@@ -191,7 +135,6 @@ export function bind(
  * @param bindData Opaque data from bindEvent_.
  *     This list is emptied during the course of calling this function.
  * @returns The function call.
- * @alias Blockly.browserEvents.unbind
  */
 export function unbind(bindData: Data): (e: Event) => void {
   // Accessing an element of the last property of the array is unsafe if the
@@ -199,10 +142,7 @@ export function unbind(bindData: Data): (e: Event) => void {
   // should only pass Data from bind or conditionalBind.
   const callback = bindData[bindData.length - 1][2];
   while (bindData.length) {
-    const bindDatum = bindData.pop();
-    const node = bindDatum![0];
-    const name = bindDatum![1];
-    const func = bindDatum![2];
+    const [node, name, func] = bindData.pop()!;
     node.removeEventListener(name, func, false);
   }
   return callback;
@@ -213,21 +153,27 @@ export function unbind(bindData: Data): (e: Event) => void {
  *
  * @param e An event.
  * @returns True if text input.
- * @alias Blockly.browserEvents.isTargetInput
  */
 export function isTargetInput(e: Event): boolean {
   if (e.target instanceof HTMLElement) {
-    if (e.target.isContentEditable ||
-        e.target.getAttribute('data-is-text-input') === 'true') {
+    if (
+      e.target.isContentEditable ||
+      e.target.getAttribute('data-is-text-input') === 'true'
+    ) {
       return true;
     }
 
     if (e.target instanceof HTMLInputElement) {
       const target = e.target;
-      return target.type === 'text' || target.type === 'number' ||
-          target.type === 'email' || target.type === 'password' ||
-          target.type === 'search' || target.type === 'tel' ||
-          target.type === 'url';
+      return (
+        target.type === 'text' ||
+        target.type === 'number' ||
+        target.type === 'email' ||
+        target.type === 'password' ||
+        target.type === 'search' ||
+        target.type === 'tel' ||
+        target.type === 'url'
+      );
     }
 
     if (e.target instanceof HTMLTextAreaElement) {
@@ -243,7 +189,6 @@ export function isTargetInput(e: Event): boolean {
  *
  * @param e Mouse event.
  * @returns True if right-click.
- * @alias Blockly.browserEvents.isRightButton
  */
 export function isRightButton(e: MouseEvent): boolean {
   if (e.ctrlKey && userAgent.MAC) {
@@ -262,10 +207,12 @@ export function isRightButton(e: MouseEvent): boolean {
  * @param svg SVG element.
  * @param matrix Inverted screen CTM to use.
  * @returns Object with .x and .y properties.
- * @alias Blockly.browserEvents.mouseToSvg
  */
 export function mouseToSvg(
-    e: MouseEvent, svg: SVGSVGElement, matrix: SVGMatrix|null): SVGPoint {
+  e: MouseEvent,
+  svg: SVGSVGElement,
+  matrix: SVGMatrix | null,
+): SVGPoint {
   const svgPoint = svg.createSVGPoint();
   svgPoint.x = e.clientX;
   svgPoint.y = e.clientY;
@@ -281,19 +228,18 @@ export function mouseToSvg(
  *
  * @param e Mouse event.
  * @returns Scroll delta object with .x and .y properties.
- * @alias Blockly.browserEvents.getScrollDeltaPixels
  */
-export function getScrollDeltaPixels(e: WheelEvent): {x: number, y: number} {
+export function getScrollDeltaPixels(e: WheelEvent): {x: number; y: number} {
   switch (e.deltaMode) {
-    case 0x00:  // Pixel mode.
+    case 0x00: // Pixel mode.
     default:
       return {x: e.deltaX, y: e.deltaY};
-    case 0x01:  // Line mode.
+    case 0x01: // Line mode.
       return {
         x: e.deltaX * LINE_MODE_MULTIPLIER,
         y: e.deltaY * LINE_MODE_MULTIPLIER,
       };
-    case 0x02:  // Page mode.
+    case 0x02: // Page mode.
       return {
         x: e.deltaX * PAGE_MODE_MULTIPLIER,
         y: e.deltaY * PAGE_MODE_MULTIPLIER,

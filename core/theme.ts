@@ -9,27 +9,23 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Theme');
+// Former goog.module ID: Blockly.Theme
 
 import * as registry from './registry.js';
 import * as object from './utils/object.js';
 
-
 export interface ITheme {
-  blockStyles?: {[key: string]: BlockStyle};
+  blockStyles?: {[key: string]: Partial<BlockStyle>};
   categoryStyles?: {[key: string]: CategoryStyle};
   componentStyles?: ComponentStyle;
   fontStyle?: FontStyle;
   startHats?: boolean;
-  base?: string|Theme;
+  base?: string | Theme;
   name: string;
 }
 
 /**
  * Class for a theme.
- *
- * @alias Blockly.Theme
  */
 export class Theme implements ITheme {
   /** @internal */
@@ -58,9 +54,11 @@ export class Theme implements ITheme {
    * @param opt_componentStyles A map of Blockly component names to style value.
    */
   constructor(
-      public name: string, opt_blockStyles?: {[key: string]: BlockStyle},
-      opt_categoryStyles?: {[key: string]: CategoryStyle},
-      opt_componentStyles?: ComponentStyle) {
+    public name: string,
+    opt_blockStyles?: {[key: string]: Partial<BlockStyle>},
+    opt_categoryStyles?: {[key: string]: CategoryStyle},
+    opt_componentStyles?: ComponentStyle,
+  ) {
     /** The block styles map. */
     this.blockStyles = opt_blockStyles || Object.create(null);
 
@@ -69,13 +67,13 @@ export class Theme implements ITheme {
 
     /** The UI components styles map. */
     this.componentStyles =
-        opt_componentStyles || Object.create(null) as ComponentStyle;
+      opt_componentStyles || (Object.create(null) as ComponentStyle);
 
     /** The font style. */
     this.fontStyle = Object.create(null) as FontStyle;
 
     // Register the theme by name.
-    registry.register(registry.Type.THEME, name, this);
+    registry.register(registry.Type.THEME, name, this, true);
   }
 
   /**
@@ -115,12 +113,18 @@ export class Theme implements ITheme {
    * @param componentName The name of the component.
    * @returns The style value.
    */
-  getComponentStyle(componentName: string): string|null {
+  getComponentStyle(componentName: string): string | null {
     const style = (this.componentStyles as AnyDuringMigration)[componentName];
-    if (style && typeof style === 'string' && this.getComponentStyle((style))) {
-      return this.getComponentStyle((style));
+    if (!style) {
+      return null;
     }
-    return style ? String(style) : null;
+    if (typeof style === 'string') {
+      const recursiveStyle = this.getComponentStyle(style);
+      if (recursiveStyle) {
+        return recursiveStyle;
+      }
+    }
+    return `${style}`;
   }
 
   /**
@@ -187,9 +191,9 @@ export class Theme implements ITheme {
 export namespace Theme {
   export interface BlockStyle {
     colourPrimary: string;
-    colourSecondary?: string;
-    colourTertiary?: string;
-    hat?: string;
+    colourSecondary: string;
+    colourTertiary: string;
+    hat: string;
   }
 
   export interface CategoryStyle {

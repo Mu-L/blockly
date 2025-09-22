@@ -4,19 +4,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The interface for an object that is deletable.
- *
- * @namespace Blockly.IDeletable
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.IDeletable');
-
+// Former goog.module ID: Blockly.IDeletable
 
 /**
  * The interface for an object that can be deleted.
- *
- * @alias Blockly.IDeletable
  */
 export interface IDeletable {
   /**
@@ -25,4 +16,20 @@ export interface IDeletable {
    * @returns True if deletable.
    */
   isDeletable(): boolean;
+
+  /** Disposes of this object, cleaning up any references or DOM elements. */
+  dispose(): void;
+
+  /** Visually indicates that the object is pending deletion. */
+  setDeleteStyle(wouldDelete: boolean): void;
+}
+
+/** Returns whether the given object is an IDeletable. */
+export function isDeletable(obj: any): obj is IDeletable {
+  return (
+    obj &&
+    typeof obj.isDeletable === 'function' &&
+    typeof obj.dispose === 'function' &&
+    typeof obj.setDeleteStyle === 'function'
+  );
 }

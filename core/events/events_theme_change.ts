@@ -9,23 +9,22 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.ThemeChange');
+// Former goog.module ID: Blockly.Events.ThemeChange
 
 import * as registry from '../registry.js';
+import type {Workspace} from '../workspace.js';
 import {AbstractEventJson} from './events_abstract.js';
 import {UiBase} from './events_ui_base.js';
-import * as eventUtils from './utils.js';
-
+import {EventType} from './type.js';
 
 /**
- * Class for a theme change event.
- *
- * @alias Blockly.Events.ThemeChange
+ * Notifies listeners that the workspace theme has changed.
  */
 export class ThemeChange extends UiBase {
+  /** The name of the new theme that has been set. */
   themeName?: string;
-  override type = eventUtils.THEME_CHANGE;
+
+  override type = EventType.THEME_CHANGE;
 
   /**
    * @param opt_themeName The theme name. Undefined for a blank event.
@@ -34,8 +33,6 @@ export class ThemeChange extends UiBase {
    */
   constructor(opt_themeName?: string, opt_workspaceId?: string) {
     super(opt_workspaceId);
-
-    /** The theme name. */
     this.themeName = opt_themeName;
   }
 
@@ -48,21 +45,35 @@ export class ThemeChange extends UiBase {
     const json = super.toJson() as ThemeChangeJson;
     if (!this.themeName) {
       throw new Error(
-          'The theme name is undefined. Either pass a theme name to ' +
-          'the constructor, or call fromJson');
+        'The theme name is undefined. Either pass a theme name to ' +
+          'the constructor, or call fromJson',
+      );
     }
     json['themeName'] = this.themeName;
     return json;
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of ThemeChange, but we can't specify that due to the fact that
+   *     parameters to static methods in subclasses must be supertypes of
+   *     parameters to static methods in superclasses.
+   * @internal
    */
-  override fromJson(json: ThemeChangeJson) {
-    super.fromJson(json);
-    this.themeName = json['themeName'];
+  static fromJson(
+    json: ThemeChangeJson,
+    workspace: Workspace,
+    event?: any,
+  ): ThemeChange {
+    const newEvent = super.fromJson(
+      json,
+      workspace,
+      event ?? new ThemeChange(),
+    ) as ThemeChange;
+    newEvent.themeName = json['themeName'];
+    return newEvent;
   }
 }
 
@@ -70,4 +81,4 @@ export interface ThemeChangeJson extends AbstractEventJson {
   themeName: string;
 }
 
-registry.register(registry.Type.EVENT, eventUtils.THEME_CHANGE, ThemeChange);
+registry.register(registry.Type.EVENT, EventType.THEME_CHANGE, ThemeChange);

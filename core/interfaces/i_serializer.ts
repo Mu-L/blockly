@@ -4,22 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The record type for an object containing functions for
- *     serializing part of the workspace.
- *
- * @namespace Blockly.serialization.ISerializer
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.serialization.ISerializer');
+// Former goog.module ID: Blockly.serialization.ISerializer
 
 import type {Workspace} from '../workspace.js';
 
-
 /**
  * Serializes and deserializes a plugin or system.
- *
- * @alias Blockly.serialization.ISerializer.ISerializer
  */
 export interface ISerializer {
   /**
@@ -32,8 +22,6 @@ export interface ISerializer {
    */
   priority: number;
 
-  /* eslint-disable no-unused-vars, valid-jsdoc */
-
   /**
    * Saves the state of the plugin or system.
    *
@@ -41,8 +29,7 @@ export interface ISerializer {
    * @returns A JS object containing the system's state, or null if there is no
    *     state to record.
    */
-  save(workspace: Workspace): Object|null;
-  /* eslint-enable valid-jsdoc */
+  save(workspace: Workspace): object | null;
 
   /**
    * Loads the state of the plugin or system.
@@ -52,7 +39,7 @@ export interface ISerializer {
    * @param workspace The workspace the system to deserialize is associated
    *     with.
    */
-  load(state: Object, workspace: Workspace): void;
+  load(state: object, workspace: Workspace): void;
 
   /**
    * Clears the state of the plugin or system.
@@ -62,4 +49,3 @@ export interface ISerializer {
    */
   clear(workspace: Workspace): void;
 }
-/* eslint-enable no-unused-vars */

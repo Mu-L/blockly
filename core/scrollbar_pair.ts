@@ -9,8 +9,7 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.ScrollbarPair');
+// Former goog.module ID: Blockly.ScrollbarPair
 
 import * as eventUtils from './events/utils.js';
 import {Scrollbar} from './scrollbar.js';
@@ -19,19 +18,16 @@ import type {Metrics} from './utils/metrics.js';
 import {Svg} from './utils/svg.js';
 import type {WorkspaceSvg} from './workspace_svg.js';
 
-
 /**
  * Class for a pair of scrollbars.  Horizontal and vertical.
- *
- * @alias Blockly.ScrollbarPair
  */
 export class ScrollbarPair {
-  hScroll: Scrollbar|null = null;
-  vScroll: Scrollbar|null = null;
-  corner_: SVGRectElement|null = null;
+  hScroll: Scrollbar | null = null;
+  vScroll: Scrollbar | null = null;
+  corner_: SVGRectElement | null = null;
 
   /** Previously recorded metrics from the workspace. */
-  private oldHostMetrics_: Metrics|null = null;
+  private oldHostMetrics: Metrics | null = null;
 
   /**
    * @param workspace Workspace to bind the scrollbars to.
@@ -42,19 +38,33 @@ export class ScrollbarPair {
    * @param opt_margin The margin to apply to these scrollbars.
    */
   constructor(
-      private workspace: WorkspaceSvg, addHorizontal?: boolean,
-      addVertical?: boolean, opt_class?: string, opt_margin?: number) {
+    private workspace: WorkspaceSvg,
+    addHorizontal?: boolean,
+    addVertical?: boolean,
+    opt_class?: string,
+    opt_margin?: number,
+  ) {
     addHorizontal = addHorizontal === undefined ? true : addHorizontal;
     addVertical = addVertical === undefined ? true : addVertical;
     const isPair = addHorizontal && addVertical;
 
     if (addHorizontal) {
-      this.hScroll =
-          new Scrollbar(workspace, true, isPair, opt_class, opt_margin);
+      this.hScroll = new Scrollbar(
+        workspace,
+        true,
+        isPair,
+        opt_class,
+        opt_margin,
+      );
     }
     if (addVertical) {
-      this.vScroll =
-          new Scrollbar(workspace, false, isPair, opt_class, opt_margin);
+      this.vScroll = new Scrollbar(
+        workspace,
+        false,
+        isPair,
+        opt_class,
+        opt_margin,
+      );
     }
 
     if (isPair) {
@@ -70,13 +80,11 @@ export class ScrollbarPair {
   /**
    * Dispose of this pair of scrollbars.
    * Unlink from all DOM elements to prevent memory leaks.
-   *
-   * @suppress {checkTypes}
    */
   dispose() {
     dom.removeNode(this.corner_);
     this.corner_ = null;
-    this.oldHostMetrics_ = null;
+    this.oldHostMetrics = null;
     if (this.hScroll) {
       this.hScroll.dispose();
       this.hScroll = null;
@@ -102,26 +110,32 @@ export class ScrollbarPair {
     // Only change the scrollbars if there has been a change in metrics.
     let resizeH = false;
     let resizeV = false;
-    if (!this.oldHostMetrics_ ||
-        this.oldHostMetrics_.viewWidth !== hostMetrics.viewWidth ||
-        this.oldHostMetrics_.viewHeight !== hostMetrics.viewHeight ||
-        this.oldHostMetrics_.absoluteTop !== hostMetrics.absoluteTop ||
-        this.oldHostMetrics_.absoluteLeft !== hostMetrics.absoluteLeft) {
+    if (
+      !this.oldHostMetrics ||
+      this.oldHostMetrics.viewWidth !== hostMetrics.viewWidth ||
+      this.oldHostMetrics.viewHeight !== hostMetrics.viewHeight ||
+      this.oldHostMetrics.absoluteTop !== hostMetrics.absoluteTop ||
+      this.oldHostMetrics.absoluteLeft !== hostMetrics.absoluteLeft
+    ) {
       // The window has been resized or repositioned.
       resizeH = true;
       resizeV = true;
     } else {
       // Has the content been resized or moved?
-      if (!this.oldHostMetrics_ ||
-          this.oldHostMetrics_.scrollWidth !== hostMetrics.scrollWidth ||
-          this.oldHostMetrics_.viewLeft !== hostMetrics.viewLeft ||
-          this.oldHostMetrics_.scrollLeft !== hostMetrics.scrollLeft) {
+      if (
+        !this.oldHostMetrics ||
+        this.oldHostMetrics.scrollWidth !== hostMetrics.scrollWidth ||
+        this.oldHostMetrics.viewLeft !== hostMetrics.viewLeft ||
+        this.oldHostMetrics.scrollLeft !== hostMetrics.scrollLeft
+      ) {
         resizeH = true;
       }
-      if (!this.oldHostMetrics_ ||
-          this.oldHostMetrics_.scrollHeight !== hostMetrics.scrollHeight ||
-          this.oldHostMetrics_.viewTop !== hostMetrics.viewTop ||
-          this.oldHostMetrics_.scrollTop !== hostMetrics.scrollTop) {
+      if (
+        !this.oldHostMetrics ||
+        this.oldHostMetrics.scrollHeight !== hostMetrics.scrollHeight ||
+        this.oldHostMetrics.viewTop !== hostMetrics.viewTop ||
+        this.oldHostMetrics.scrollTop !== hostMetrics.scrollTop
+      ) {
         resizeV = true;
       }
     }
@@ -143,20 +157,24 @@ export class ScrollbarPair {
 
     if (this.hScroll && this.vScroll) {
       // Reposition the corner square.
-      if (!this.oldHostMetrics_ ||
-          this.oldHostMetrics_.viewWidth !== hostMetrics.viewWidth ||
-          this.oldHostMetrics_.absoluteLeft !== hostMetrics.absoluteLeft) {
+      if (
+        !this.oldHostMetrics ||
+        this.oldHostMetrics.viewWidth !== hostMetrics.viewWidth ||
+        this.oldHostMetrics.absoluteLeft !== hostMetrics.absoluteLeft
+      ) {
         this.corner_?.setAttribute('x', String(this.vScroll.position.x));
       }
-      if (!this.oldHostMetrics_ ||
-          this.oldHostMetrics_.viewHeight !== hostMetrics.viewHeight ||
-          this.oldHostMetrics_.absoluteTop !== hostMetrics.absoluteTop) {
+      if (
+        !this.oldHostMetrics ||
+        this.oldHostMetrics.viewHeight !== hostMetrics.viewHeight ||
+        this.oldHostMetrics.absoluteTop !== hostMetrics.absoluteTop
+      ) {
         this.corner_?.setAttribute('y', String(this.hScroll.position.y));
       }
     }
 
     // Cache the current metrics to potentially short-cut the next resize event.
-    this.oldHostMetrics_ = hostMetrics;
+    this.oldHostMetrics = hostMetrics;
   }
 
   /**
@@ -221,7 +239,7 @@ export class ScrollbarPair {
 
     if (updateMetrics || updateMetrics === undefined) {
       // Update metrics.
-      const xyRatio: {x?: number, y?: number} = {};
+      const xyRatio: {x?: number; y?: number} = {};
       if (this.hScroll) {
         xyRatio.x = this.hScroll.getRatio_();
       }
@@ -285,6 +303,16 @@ export class ScrollbarPair {
       isVisible = isVisible || this.vScroll.isVisible();
     }
     return isVisible;
+  }
+
+  /**
+   * Sets the visibility of any existing scrollbars.
+   *
+   * @param visible True if visible.
+   */
+  setVisible(visible: boolean) {
+    if (this.hScroll) this.hScroll.setVisibleInternal(visible);
+    if (this.vScroll) this.vScroll.setVisibleInternal(visible);
   }
 
   /**

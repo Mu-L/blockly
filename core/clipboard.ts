@@ -4,88 +4,194 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Blockly's internal clipboard for managing copy-paste.
- *
- * @namespace Blockly.clipboard
- */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.clipboard');
+// Former goog.module ID: Blockly.clipboard
 
-import type {CopyData, ICopyable} from './interfaces/i_copyable.js';
-
+import {BlockCopyData, BlockPaster} from './clipboard/block_paster.js';
+import * as registry from './clipboard/registry.js';
+import type {ICopyData, ICopyable} from './interfaces/i_copyable.js';
+import {isSelectable} from './interfaces/i_selectable.js';
+import * as globalRegistry from './registry.js';
+import {Coordinate} from './utils/coordinate.js';
+import {WorkspaceSvg} from './workspace_svg.js';
 
 /** Metadata about the object that is currently on the clipboard. */
-let copyData: CopyData|null = null;
+let stashedCopyData: ICopyData | null = null;
+
+let stashedWorkspace: WorkspaceSvg | null = null;
+
+let stashedCoordinates: Coordinate | undefined = undefined;
 
 /**
- * Copy a block or workspace comment onto the local clipboard.
+ * Copy a copyable item, and record its data and the workspace it was
+ * copied from.
  *
- * @param toCopy Block or Workspace Comment to be copied.
- * @alias Blockly.clipboard.copy
- * @internal
+ * This function does not perform any checks to ensure the copy
+ * should be allowed, e.g. to ensure the block is deletable. Such
+ * checks should be done before calling this function.
+ *
+ * Note that if the copyable item is not an `ISelectable` or its
+ * `workspace` property is not a `WorkspaceSvg`, the copy will be
+ * successful, but there will be no saved workspace data. This will
+ * impact the ability to paste the data unless you explictily pass
+ * a workspace into the paste method.
+ *
+ * @param toCopy item to copy.
+ * @param location location to save as a potential paste location.
+ * @returns the copied data if copy was successful, otherwise null.
  */
-export function copy(toCopy: ICopyable) {
-  TEST_ONLY.copyInternal(toCopy);
+export function copy<T extends ICopyData>(
+  toCopy: ICopyable<T>,
+  location?: Coordinate,
+): T | null {
+  const data = toCopy.toCopyData();
+  stashedCopyData = data;
+  if (isSelectable(toCopy) && toCopy.workspace instanceof WorkspaceSvg) {
+    stashedWorkspace = toCopy.workspace;
+  } else {
+    stashedWorkspace = null;
+  }
+
+  stashedCoordinates = location;
+  return data;
 }
 
 /**
- * Private version of copy for stubbing in tests.
+ * Gets the copy data for the last item copied. This is useful if you
+ * are implementing custom copy/paste behavior. If you want the default
+ * behavior, just use the copy and paste methods directly.
+ *
+ * @returns copy data for the last item copied, or null if none set.
  */
-function copyInternal(toCopy: ICopyable) {
-  copyData = toCopy.toCopyData();
+export function getLastCopiedData() {
+  return stashedCopyData;
 }
 
 /**
- * Paste a block or workspace comment on to the main workspace.
+ * Sets the last copied item. You should call this method if you implement
+ * custom copy behavior, so that other callers are working with the correct
+ * data. This method is called automatically if you use the built-in copy
+ * method.
  *
+ * @param copyData copy data for the last item copied.
+ */
+export function setLastCopiedData(copyData: ICopyData) {
+  stashedCopyData = copyData;
+}
+
+/**
+ * Gets the workspace that was last copied from. This is useful if you
+ * are implementing custom copy/paste behavior and want to paste on the
+ * same workspace that was copied from. If you want the default behavior,
+ * just use the copy and paste methods directly.
+ *
+ * @returns workspace that was last copied from, or null if none set.
+ */
+export function getLastCopiedWorkspace() {
+  return stashedWorkspace;
+}
+
+/**
+ * Sets the workspace that was last copied from. You should call this method
+ * if you implement custom copy behavior, so that other callers are working
+ * with the correct data. This method is called automatically if you use the
+ * built-in copy method.
+ *
+ * @param workspace workspace that was last copied from.
+ */
+export function setLastCopiedWorkspace(workspace: WorkspaceSvg) {
+  stashedWorkspace = workspace;
+}
+
+/**
+ * Gets the location that was last copied from. This is useful if you
+ * are implementing custom copy/paste behavior. If you want the
+ * default behavior, just use the copy and paste methods directly.
+ *
+ * @returns last saved location, or null if none set.
+ */
+export function getLastCopiedLocation() {
+  return stashedCoordinates;
+}
+
+/**
+ * Sets the location that was last copied from. You should call this method
+ * if you implement custom copy behavior, so that other callers are working
+ * with the correct data. This method is called automatically if you use the
+ * built-in copy method.
+ *
+ * @param location last saved location, which can be used to paste at.
+ */
+export function setLastCopiedLocation(location: Coordinate) {
+  stashedCoordinates = location;
+}
+
+/**
+ * Paste a pasteable element into the given workspace.
+ *
+ * This function does not perform any checks to ensure the paste
+ * is allowed, e.g. that the workspace is rendered or the block
+ * is pasteable. Such checks should be done before calling this
+ * function.
+ *
+ * @param copyData The data to paste into the workspace.
+ * @param workspace The workspace to paste the data into.
+ * @param coordinate The location to paste the thing at.
  * @returns The pasted thing if the paste was successful, null otherwise.
- * @alias Blockly.clipboard.paste
- * @internal
  */
-export function paste(): ICopyable|null {
-  if (!copyData) {
-    return null;
-  }
-  // Pasting always pastes to the main workspace, even if the copy
-  // started in a flyout workspace.
-  let workspace = copyData.source;
-  if (workspace.isFlyout) {
-    workspace = workspace.targetWorkspace!;
-  }
-  if (copyData.typeCounts &&
-      workspace.isCapacityAvailable(copyData.typeCounts)) {
-    return workspace.paste(copyData.saveInfo);
-  }
-  return null;
-}
+export function paste<T extends ICopyData>(
+  copyData: T,
+  workspace: WorkspaceSvg,
+  coordinate?: Coordinate,
+): ICopyable<T> | null;
 
 /**
- * Duplicate this block and its children, or a workspace comment.
+ * Pastes the last copied ICopyable into the last copied-from workspace.
  *
- * @param toDuplicate Block or Workspace Comment to be duplicated.
- * @returns The block or workspace comment that was duplicated, or null if the
- *     duplication failed.
- * @alias Blockly.clipboard.duplicate
- * @internal
+ * @returns the pasted thing if the paste was successful, null otherwise.
  */
-export function duplicate(toDuplicate: ICopyable): ICopyable|null {
-  return TEST_ONLY.duplicateInternal(toDuplicate);
+export function paste(): ICopyable<ICopyData> | null;
+
+/**
+ * Pastes the given data into the workspace, or the last copied ICopyable if
+ * no data is passed.
+ *
+ * @param copyData The data to paste into the workspace.
+ * @param workspace The workspace to paste the data into.
+ * @param coordinate The location to paste the thing at.
+ * @returns The pasted thing if the paste was successful, null otherwise.
+ */
+export function paste<T extends ICopyData>(
+  copyData?: T,
+  workspace?: WorkspaceSvg,
+  coordinate?: Coordinate,
+): ICopyable<ICopyData> | null {
+  if (!copyData || !workspace) {
+    if (!stashedCopyData || !stashedWorkspace) return null;
+    return pasteFromData(stashedCopyData, stashedWorkspace, stashedCoordinates);
+  }
+  return pasteFromData(copyData, workspace, coordinate);
 }
 
 /**
- * Private version of duplicate for stubbing in tests.
+ * Paste a pasteable element into the workspace.
+ *
+ * @param copyData The data to paste into the workspace.
+ * @param workspace The workspace to paste the data into.
+ * @param coordinate The location to paste the thing at.
+ * @returns The pasted thing if the paste was successful, null otherwise.
  */
-function duplicateInternal(toDuplicate: ICopyable): ICopyable|null {
-  const oldCopyData = copyData;
-  copy(toDuplicate);
-  const pastedThing =
-      toDuplicate.toCopyData()?.source?.paste(copyData!.saveInfo) ?? null;
-  copyData = oldCopyData;
-  return pastedThing;
+function pasteFromData<T extends ICopyData>(
+  copyData: T,
+  workspace: WorkspaceSvg,
+  coordinate?: Coordinate,
+): ICopyable<T> | null {
+  workspace = workspace.isMutator
+    ? workspace
+    : // Use the parent workspace if it exists (e.g. for pasting into flyouts)
+      (workspace.options.parentWorkspace ?? workspace);
+  return (globalRegistry
+    .getObject(globalRegistry.Type.PASTER, copyData.paster, false)
+    ?.paste(copyData, workspace, coordinate) ?? null) as ICopyable<T> | null;
 }
 
-export const TEST_ONLY = {
-  duplicateInternal,
-  copyInternal,
-};
+export {BlockCopyData, BlockPaster, registry};

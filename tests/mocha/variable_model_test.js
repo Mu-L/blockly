@@ -4,61 +4,82 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-goog.declareModuleId('Blockly.test.variableModel');
+import {assert} from '../../node_modules/chai/index.js';
+import {
+  sharedTestSetup,
+  sharedTestTeardown,
+} from './test_helpers/setup_teardown.js';
 
-import {sharedTestSetup, sharedTestTeardown} from './test_helpers/setup_teardown.js';
-
-
-suite('Variable Model', function() {
-  setup(function() {
+suite('Variable Model', function () {
+  setup(function () {
     sharedTestSetup.call(this);
     this.workspace = new Blockly.Workspace();
   });
 
-  teardown(function() {
+  teardown(function () {
     sharedTestTeardown.call(this);
   });
 
-  test('Trivial', function() {
+  test('Trivial', function () {
     const variable = new Blockly.VariableModel(
-        this.workspace, 'test', 'test_type', 'test_id');
-    chai.assert.equal(variable.name, 'test');
-    chai.assert.equal(variable.type, 'test_type');
-    chai.assert.equal(variable.id_, 'test_id');
+      this.workspace,
+      'test',
+      'test_type',
+      'test_id',
+    );
+    assert.equal(variable.getName(), 'test');
+    assert.equal(variable.getType(), 'test_type');
+    assert.equal(variable.getId(), 'test_id');
   });
 
-  test('Null type', function() {
+  test('Null type', function () {
     const variable = new Blockly.VariableModel(
-        this.workspace, 'test', null, 'test_id');
-    chai.assert.equal(variable.type, '');
+      this.workspace,
+      'test',
+      null,
+      'test_id',
+    );
+    assert.equal(variable.getType(), '');
   });
 
-  test('Undefined type', function() {
+  test('Undefined type', function () {
     const variable = new Blockly.VariableModel(
-        this.workspace, 'test', undefined, 'test_id');
-    chai.assert.equal(variable.type, '');
+      this.workspace,
+      'test',
+      undefined,
+      'test_id',
+    );
+    assert.equal(variable.getType(), '');
   });
 
-  test('Null id', function() {
+  test('Null id', function () {
     const variable = new Blockly.VariableModel(
-        this.workspace, 'test', 'test_type', null);
-    chai.assert.equal(variable.name, 'test');
-    chai.assert.equal(variable.type, 'test_type');
-    chai.assert.exists(variable.id_);
+      this.workspace,
+      'test',
+      'test_type',
+      null,
+    );
+    assert.equal(variable.getName(), 'test');
+    assert.equal(variable.getType(), 'test_type');
+    assert.exists(variable.getId());
   });
 
-  test('Undefined id', function() {
+  test('Undefined id', function () {
     const variable = new Blockly.VariableModel(
-        this.workspace, 'test', 'test_type', undefined);
-    chai.assert.equal(variable.name, 'test');
-    chai.assert.equal(variable.type, 'test_type');
-    chai.assert.exists(variable.id_);
+      this.workspace,
+      'test',
+      'test_type',
+      undefined,
+    );
+    assert.equal(variable.getName(), 'test');
+    assert.equal(variable.getType(), 'test_type');
+    assert.exists(variable.getId());
   });
 
-  test('Only name provided', function() {
+  test('Only name provided', function () {
     const variable = new Blockly.VariableModel(this.workspace, 'test');
-    chai.assert.equal(variable.name, 'test');
-    chai.assert.equal(variable.type, '');
-    chai.assert.exists(variable.id_);
+    assert.equal(variable.getName(), 'test');
+    assert.equal(variable.getType(), '');
+    assert.exists(variable.getId());
   });
 });

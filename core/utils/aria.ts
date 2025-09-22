@@ -4,16 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * ARIA-related constants and utilities.
- * These methods are not specific to Blockly, and could be factored out into
- * a JavaScript framework such as Closure.
- *
- * @namespace Blockly.utils.aria
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.utils.aria');
-
+// Former goog.module ID: Blockly.utils.aria
 
 /** ARIA states/properties prefix. */
 const ARIA_PREFIX = 'aria-';
@@ -24,8 +15,6 @@ const ROLE_ATTRIBUTE = 'role';
 /**
  * ARIA role values.
  * Copied from Closure's goog.a11y.aria.Role
- *
- * @alias Blockly.utils.aria.Role
  */
 export enum Role {
   // ARIA role for an interactive control of tabular data.
@@ -58,14 +47,18 @@ export enum Role {
   TREE = 'tree',
 
   // ARIA role for a tree item that sometimes may be expanded or collapsed.
-  TREEITEM = 'treeitem'
+  TREEITEM = 'treeitem',
+
+  // ARIA role for a visual separator in e.g. a menu.
+  SEPARATOR = 'separator',
+
+  // ARIA role for a live region providing information.
+  STATUS = 'status',
 }
 
 /**
  * ARIA states and properties.
  * Copied from Closure's goog.a11y.aria.State
- *
- * @alias Blockly.utils.aria.State
  */
 export enum State {
   // ARIA property for setting the currently active descendant of an element,
@@ -119,7 +112,15 @@ export enum State {
   VALUEMAX = 'valuemax',
 
   // ARIA property for slider minimum value. Value: number.
-  VALUEMIN = 'valuemin'
+  VALUEMIN = 'valuemin',
+
+  // ARIA property for live region chattiness.
+  // Value: one of {polite, assertive, off}.
+  LIVE = 'live',
+
+  // ARIA property for removing elements from the accessibility tree.
+  // Value: one of {true, false, undefined}.
+  HIDDEN = 'hidden',
 }
 
 /**
@@ -129,7 +130,6 @@ export enum State {
  *
  * @param element DOM node to set role of.
  * @param roleName Role name.
- * @alias Blockly.utils.aria.setRole
  */
 export function setRole(element: Element, roleName: Role) {
   element.setAttribute(ROLE_ATTRIBUTE, roleName);
@@ -144,10 +144,12 @@ export function setRole(element: Element, roleName: Role) {
  *     Automatically adds prefix 'aria-' to the state name if the attribute is
  * not an extra attribute.
  * @param value Value for the state attribute.
- * @alias Blockly.utils.aria.setState
  */
 export function setState(
-    element: Element, stateName: State, value: string|boolean|number|string[]) {
+  element: Element,
+  stateName: State,
+  value: string | boolean | number | string[],
+) {
   if (Array.isArray(value)) {
     value = value.join(' ');
   }

@@ -9,24 +9,23 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Names');
+// Former goog.module ID: Blockly.Names
 
+import type {IVariableMap} from './interfaces/i_variable_map.js';
+import type {
+  IVariableModel,
+  IVariableState,
+} from './interfaces/i_variable_model.js';
 import {Msg} from './msg.js';
-// import * as Procedures from './procedures.js';
-import type {VariableMap} from './variable_map.js';
 import * as Variables from './variables.js';
 import type {Workspace} from './workspace.js';
 
-
 /**
  * Class for a database of entity names (variables, procedures, etc).
- *
- * @alias Blockly.Names
  */
 export class Names {
   static DEVELOPER_VARIABLE_TYPE: NameType;
-  private readonly variablePrefix_: string;
+  private readonly variablePrefix: string;
 
   /** A set of reserved words. */
   private readonly reservedWords: Set<string>;
@@ -43,7 +42,8 @@ export class Names {
   /**
    * The variable map from the workspace, containing Blockly variable models.
    */
-  private variableMap_: VariableMap|null = null;
+  private variableMap: IVariableMap<IVariableModel<IVariableState>> | null =
+    null;
 
   /**
    * @param reservedWordsList A comma-separated string of words that are illegal
@@ -53,10 +53,11 @@ export class Names {
    */
   constructor(reservedWordsList: string, opt_variablePrefix?: string) {
     /** The prefix to attach to variable names in generated code. */
-    this.variablePrefix_ = opt_variablePrefix || '';
+    this.variablePrefix = opt_variablePrefix || '';
 
-    this.reservedWords =
-        new Set<string>(reservedWordsList ? reservedWordsList.split(',') : []);
+    this.reservedWords = new Set<string>(
+      reservedWordsList ? reservedWordsList.split(',') : [],
+    );
   }
 
   /**
@@ -65,7 +66,7 @@ export class Names {
   reset() {
     this.db.clear();
     this.dbReverse.clear();
-    this.variableMap_ = null;
+    this.variableMap = null;
   }
 
   /**
@@ -73,8 +74,8 @@ export class Names {
    *
    * @param map The map to track.
    */
-  setVariableMap(map: VariableMap) {
-    this.variableMap_ = map;
+  setVariableMap(map: IVariableMap<IVariableModel<IVariableState>>) {
+    this.variableMap = map;
   }
 
   /**
@@ -85,19 +86,20 @@ export class Names {
    * @returns The name of the referenced variable, or null if there was no
    *     variable map or the variable was not found in the map.
    */
-  private getNameForUserVariable_(id: string): string|null {
-    if (!this.variableMap_) {
+  private getNameForUserVariable(id: string): string | null {
+    if (!this.variableMap) {
       console.warn(
-          'Deprecated call to Names.prototype.getName without ' +
+        'Deprecated call to Names.prototype.getName without ' +
           'defining a variable map. To fix, add the following code in your ' +
-          'generator\'s init() function:\n' +
+          "generator's init() function:\n" +
           'Blockly.YourGeneratorName.nameDB_.setVariableMap(' +
-          'workspace.getVariableMap());');
+          'workspace.getVariableMap());',
+      );
       return null;
     }
-    const variable = this.variableMap_.getVariableById(id);
+    const variable = this.variableMap.getVariableById(id);
     if (variable) {
-      return variable.name;
+      return variable.getName();
     }
     return null;
   }
@@ -122,8 +124,9 @@ export class Names {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   populateProcedures(workspace: Workspace) {
     throw new Error(
-        'The implementation of populateProcedures should be ' +
-        'monkey-patched in by blockly.ts');
+      'The implementation of populateProcedures should be ' +
+        'monkey-patched in by blockly.ts',
+    );
   }
 
   /**
@@ -134,10 +137,10 @@ export class Names {
    *     'DEVELOPER_VARIABLE', etc...).
    * @returns An entity name that is legal in the exported language.
    */
-  getName(nameOrId: string, type: NameType|string): string {
+  getName(nameOrId: string, type: NameType | string): string {
     let name = nameOrId;
     if (type === NameType.VARIABLE) {
-      const varName = this.getNameForUserVariable_(nameOrId);
+      const varName = this.getNameForUserVariable(nameOrId);
       if (varName) {
         // Successful ID lookup.
         name = varName;
@@ -146,9 +149,9 @@ export class Names {
     const normalizedName = name.toLowerCase();
 
     const isVar =
-        type === NameType.VARIABLE || type === NameType.DEVELOPER_VARIABLE;
+      type === NameType.VARIABLE || type === NameType.DEVELOPER_VARIABLE;
 
-    const prefix = isVar ? this.variablePrefix_ : '';
+    const prefix = isVar ? this.variablePrefix : '';
     if (!this.db.has(type)) {
       this.db.set(type, new Map<string, string>());
     }
@@ -168,7 +171,7 @@ export class Names {
    *     'DEVELOPER_VARIABLE', etc...).
    * @returns A list of Blockly entity names (no constraints).
    */
-  getUserNames(type: NameType|string): string[] {
+  getUserNames(type: NameType | string): string[] {
     const userNames = this.db.get(type)?.keys();
     return userNames ? Array.from(userNames) : [];
   }
@@ -184,21 +187,21 @@ export class Names {
    *     'DEVELOPER_VARIABLE', etc...).
    * @returns An entity name that is legal in the exported language.
    */
-  getDistinctName(name: string, type: NameType|string): string {
-    let safeName = this.safeName_(name);
-    let i = '';
-    while (this.dbReverse.has(safeName + i) ||
-           this.reservedWords.has(safeName + i)) {
+  getDistinctName(name: string, type: NameType | string): string {
+    let safeName = this.safeName(name);
+    let i: number | null = null;
+    while (
+      this.dbReverse.has(safeName + (i ?? '')) ||
+      this.reservedWords.has(safeName + (i ?? ''))
+    ) {
       // Collision with existing name.  Create a unique name.
-      // AnyDuringMigration because:  Type 'string | 2' is not assignable to
-      // type 'string'.
-      i = (i ? i + 1 : 2) as AnyDuringMigration;
+      i = i ? i + 1 : 2;
     }
-    safeName += i;
+    safeName += i ?? '';
     this.dbReverse.add(safeName);
     const isVar =
-        type === NameType.VARIABLE || type === NameType.DEVELOPER_VARIABLE;
-    const prefix = isVar ? this.variablePrefix_ : '';
+      type === NameType.VARIABLE || type === NameType.DEVELOPER_VARIABLE;
+    const prefix = isVar ? this.variablePrefix : '';
     return prefix + safeName;
   }
 
@@ -210,7 +213,7 @@ export class Names {
    * @param name Potentially illegal entity name.
    * @returns Safe entity name.
    */
-  private safeName_(name: string): string {
+  private safeName(name: string): string {
     if (!name) {
       name = Msg['UNNAMED_KEY'] || 'unnamed';
     } else {
@@ -219,7 +222,7 @@ export class Names {
       // https://github.com/google/blockly/issues/1654
       name = encodeURI(name.replace(/ /g, '_')).replace(/[^\w]/g, '_');
       // Most languages don't allow names with leading numbers.
-      if ('0123456789'.indexOf(name[0]) !== -1) {
+      if ('0123456789'.includes(name[0])) {
         name = 'my_' + name;
       }
     }
@@ -251,7 +254,6 @@ export namespace Names {
    * getName('foo', 'VARIABLE') = 'foo'
    * getName('foo', 'PROCEDURE') = 'foo2'
    *
-   * @alias Blockly.Names.NameType
    */
   export enum NameType {
     DEVELOPER_VARIABLE = 'DEVELOPER_VARIABLE',

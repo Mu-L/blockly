@@ -4,42 +4,28 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Library to create tooltips for Blockly.
- * First, call createDom() after onload.
- * Second, set the 'tooltip' property on any SVG element that needs a tooltip.
- * If the tooltip is a string, or a function that returns a string, that message
- * will be displayed. If the tooltip is an SVG element, then that object's
- * tooltip will be used. Third, call bindMouseEvents(e) passing the SVG element.
- *
- * @namespace Blockly.Tooltip
- */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Tooltip');
+// Former goog.module ID: Blockly.Tooltip
 
 import * as browserEvents from './browser_events.js';
 import * as common from './common.js';
 import * as blocklyString from './utils/string.js';
-
 
 /**
  * A type which can define a tooltip.
  * Either a string, an object containing a tooltip property, or a function which
  * returns either a string, or another arbitrarily nested function which
  * eventually unwinds to a string.
- *
- * @alias Blockly.Tooltip.TipInfo
  */
 export type TipInfo =
-    string|{tooltip: AnyDuringMigration}|(() => TipInfo|string|Function);
+  | string
+  | {tooltip: AnyDuringMigration}
+  | (() => TipInfo | string);
 
 /**
  * A function that renders custom tooltip UI.
  * 1st parameter: the div element to render content into.
  * 2nd parameter: the element being moused over (i.e., the element for which the
  * tooltip should be shown).
- *
- * @alias Blockly.Tooltip.CustomTooltip
  */
 export type CustomTooltip = (p1: Element, p2: Element) => AnyDuringMigration;
 
@@ -48,14 +34,13 @@ export type CustomTooltip = (p1: Element, p2: Element) => AnyDuringMigration;
  * this is defined, the function will be called instead of rendering the default
  * tooltip UI.
  */
-let customTooltip: CustomTooltip|undefined = undefined;
+let customTooltip: CustomTooltip | undefined = undefined;
 
 /**
  * Sets a custom function that will be called if present instead of the default
  * tooltip UI.
  *
  * @param customFn A custom tooltip used to render an alternate tooltip UI.
- * @alias Blockly.Tooltip.setCustomTooltip
  */
 export function setCustomTooltip(customFn: CustomTooltip) {
   customTooltip = customFn;
@@ -66,7 +51,7 @@ export function setCustomTooltip(customFn: CustomTooltip) {
  *
  * @returns The custom tooltip function, if defined.
  */
-export function getCustomTooltip(): CustomTooltip|undefined {
+export function getCustomTooltip(): CustomTooltip | undefined {
   return customTooltip;
 }
 
@@ -77,7 +62,6 @@ let visible = false;
  * Returns whether or not a tooltip is showing
  *
  * @returns True if a tooltip is showing
- * @alias Blockly.Tooltip.isVisible
  */
 export function isVisible(): boolean {
   return visible;
@@ -88,8 +72,6 @@ let blocked = false;
 
 /**
  * Maximum width (in characters) of a tooltip.
- *
- * @alias Blockly.Tooltip.LIMIT
  */
 export const LIMIT = 50;
 
@@ -120,49 +102,38 @@ let poisonedElement: AnyDuringMigration = null;
 
 /**
  * Horizontal offset between mouse cursor and tooltip.
- *
- * @alias Blockly.Tooltip.OFFSET_X
  */
 export const OFFSET_X = 0;
 
 /**
  * Vertical offset between mouse cursor and tooltip.
- *
- * @alias Blockly.Tooltip.OFFSET_Y
  */
 export const OFFSET_Y = 10;
 
 /**
  * Radius mouse can move before killing tooltip.
- *
- * @alias Blockly.Tooltip.RADIUS_OK
  */
 export const RADIUS_OK = 10;
 
 /**
  * Delay before tooltip appears.
- *
- * @alias Blockly.Tooltip.HOVER_MS
  */
 export const HOVER_MS = 750;
 
 /**
  * Horizontal padding between tooltip and screen edge.
- *
- * @alias Blockly.Tooltip.MARGINS
  */
 export const MARGINS = 5;
 
 /** The HTML container.  Set once by createDom. */
-let containerDiv: HTMLDivElement|null = null;
+let containerDiv: HTMLDivElement | null = null;
 
 /**
  * Returns the HTML tooltip container.
  *
  * @returns The HTML tooltip container.
- * @alias Blockly.Tooltip.getDiv
  */
-export function getDiv(): HTMLDivElement|null {
+export function getDiv(): HTMLDivElement | null {
   return containerDiv;
 }
 
@@ -171,9 +142,8 @@ export function getDiv(): HTMLDivElement|null {
  *
  * @param object The object to get the tooltip text of.
  * @returns The tooltip text of the element.
- * @alias Blockly.Tooltip.getTooltipOfObject
  */
-export function getTooltipOfObject(object: AnyDuringMigration|null): string {
+export function getTooltipOfObject(object: AnyDuringMigration | null): string {
   const obj = getTargetObject(object);
   if (obj) {
     let tooltip = obj.tooltip;
@@ -195,10 +165,14 @@ export function getTooltipOfObject(object: AnyDuringMigration|null): string {
  * @param obj The object are trying to find the target tooltip object of.
  * @returns The target tooltip object.
  */
-function getTargetObject(obj: object|null): {tooltip: AnyDuringMigration}|null {
+function getTargetObject(
+  obj: object | null,
+): {tooltip: AnyDuringMigration} | null {
   while (obj && (obj as any).tooltip) {
-    if (typeof (obj as any).tooltip === 'string' ||
-        typeof (obj as any).tooltip === 'function') {
+    if (
+      typeof (obj as any).tooltip === 'string' ||
+      typeof (obj as any).tooltip === 'function'
+    ) {
       return obj as {tooltip: string | (() => string)};
     }
     obj = (obj as any).tooltip;
@@ -208,12 +182,10 @@ function getTargetObject(obj: object|null): {tooltip: AnyDuringMigration}|null {
 
 /**
  * Create the tooltip div and inject it onto the page.
- *
- * @alias Blockly.Tooltip.createDom
  */
 export function createDom() {
-  if (containerDiv) {
-    return;  // Already created.
+  if (document.querySelector('.blocklyTooltipDiv')) {
+    return; // Already created.
   }
   // Create an HTML container for popup overlays (e.g. editor widgets).
   containerDiv = document.createElement('div');
@@ -226,35 +198,41 @@ export function createDom() {
  * Binds the required mouse events onto an SVG element.
  *
  * @param element SVG element onto which tooltip is to be bound.
- * @alias Blockly.Tooltip.bindMouseEvents
  */
 export function bindMouseEvents(element: Element) {
   // TODO (#6097): Don't stash wrapper info on the DOM.
-  (element as AnyDuringMigration).mouseOverWrapper_ =
-      browserEvents.bind(element, 'mouseover', null, onMouseOver);
-  (element as AnyDuringMigration).mouseOutWrapper_ =
-      browserEvents.bind(element, 'mouseout', null, onMouseOut);
+  (element as AnyDuringMigration).mouseOverWrapper_ = browserEvents.bind(
+    element,
+    'pointerover',
+    null,
+    onMouseOver,
+  );
+  (element as AnyDuringMigration).mouseOutWrapper_ = browserEvents.bind(
+    element,
+    'pointerout',
+    null,
+    onMouseOut,
+  );
 
   // Don't use bindEvent_ for mousemove since that would create a
   // corresponding touch handler, even though this only makes sense in the
   // context of a mouseover/mouseout.
-  element.addEventListener('mousemove', onMouseMove, false);
+  element.addEventListener('pointermove', onMouseMove, false);
 }
 
 /**
  * Unbinds tooltip mouse events from the SVG element.
  *
  * @param element SVG element onto which tooltip is bound.
- * @alias Blockly.Tooltip.unbindMouseEvents
  */
-export function unbindMouseEvents(element: Element|null) {
+export function unbindMouseEvents(element: Element | null) {
   if (!element) {
     return;
   }
   // TODO (#6097): Don't stash wrapper info on the DOM.
   browserEvents.unbind((element as AnyDuringMigration).mouseOverWrapper_);
   browserEvents.unbind((element as AnyDuringMigration).mouseOutWrapper_);
-  element.removeEventListener('mousemove', onMouseMove);
+  element.removeEventListener('pointermove', onMouseMove);
 }
 
 /**
@@ -263,7 +241,7 @@ export function unbindMouseEvents(element: Element|null) {
  *
  * @param e Mouse event.
  */
-function onMouseOver(e: Event) {
+function onMouseOver(e: PointerEvent) {
   if (blocked) {
     // Someone doesn't want us to show tooltips.
     return;
@@ -285,7 +263,7 @@ function onMouseOver(e: Event) {
  *
  * @param _e Mouse event.
  */
-function onMouseOut(_e: Event) {
+function onMouseOut(_e: PointerEvent) {
   if (blocked) {
     // Someone doesn't want us to show tooltips.
     return;
@@ -294,12 +272,13 @@ function onMouseOut(_e: Event) {
   // a mouseOut followed instantly by a mouseOver.  Fork off the mouseOut
   // event and kill it if a mouseOver is received immediately.
   // This way the task only fully executes if mousing into the void.
-  mouseOutPid = setTimeout(function() {
+  mouseOutPid = setTimeout(function () {
     element = null;
     poisonedElement = null;
     hide();
   }, 1);
   clearTimeout(showPid);
+  showPid = 0;
 }
 
 /**
@@ -346,7 +325,6 @@ function onMouseMove(e: Event) {
 /**
  * Dispose of the tooltip.
  *
- * @alias Blockly.Tooltip.dispose
  * @internal
  */
 export function dispose() {
@@ -357,8 +335,6 @@ export function dispose() {
 
 /**
  * Hide the tooltip.
- *
- * @alias Blockly.Tooltip.hide
  */
 export function hide() {
   if (visible) {
@@ -369,6 +345,7 @@ export function hide() {
   }
   if (showPid) {
     clearTimeout(showPid);
+    showPid = 0;
   }
 }
 
@@ -376,7 +353,6 @@ export function hide() {
  * Hide any in-progress tooltips and block showing new tooltips until the next
  * call to unblock().
  *
- * @alias Blockly.Tooltip.block
  * @internal
  */
 export function block() {
@@ -388,7 +364,6 @@ export function block() {
  * Unblock tooltips: allow them to be scheduled and shown according to their own
  * logic.
  *
- * @alias Blockly.Tooltip.unblock
  * @internal
  */
 export function unblock() {
@@ -415,7 +390,7 @@ function renderDefaultContent() {
   // Create new text, line by line.
   const lines = tip.split('\n');
   for (let i = 0; i < lines.length; i++) {
-    const div = (document.createElement('div'));
+    const div = document.createElement('div');
     div.appendChild(document.createTextNode(lines[i]));
     containerDiv!.appendChild(div);
   }
@@ -428,7 +403,7 @@ function renderDefaultContent() {
  * @param rtl True if the tooltip should be in right-to-left layout.
  * @returns Coordinates at which the tooltip div should be placed.
  */
-function getPosition(rtl: boolean): {x: number, y: number} {
+function getPosition(rtl: boolean): {x: number; y: number} {
   // Position the tooltip just below the cursor.
   const windowWidth = document.documentElement.clientWidth;
   const windowHeight = document.documentElement.clientHeight;
@@ -450,8 +425,10 @@ function getPosition(rtl: boolean): {x: number, y: number} {
     // Prevent falling off left edge in RTL mode.
     anchorX = Math.max(MARGINS - window.scrollX, anchorX);
   } else {
-    if (anchorX + containerDiv!.offsetWidth >
-        windowWidth + window.scrollX - 2 * MARGINS) {
+    if (
+      anchorX + containerDiv!.offsetWidth >
+      windowWidth + window.scrollX - 2 * MARGINS
+    ) {
       // Falling off the right edge of the screen;
       // clamp the tooltip on the edge.
       anchorX = windowWidth - containerDiv!.offsetWidth - 2 * MARGINS;

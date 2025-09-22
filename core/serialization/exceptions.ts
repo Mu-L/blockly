@@ -4,26 +4,17 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Contains custom errors thrown by the serialization system.
- *
- * @namespace Blockly.serialization.exceptions
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.serialization.exceptions');
+// Former goog.module ID: Blockly.serialization.exceptions
 
 import type {Block} from '../block.js';
 import type {State} from './blocks.js';
 
-
-/** @alias Blockly.serialization.exceptions.DeserializationError */
 export class DeserializationError extends Error {}
 
 /**
  * Represents an error where the serialized state is expected to provide a
  * block type, but it is not provided.
  *
- * @alias Blockly.serialization.exceptions.MissingBlockType
  */
 export class MissingBlockType extends DeserializationError {
   /**
@@ -38,8 +29,6 @@ export class MissingBlockType extends DeserializationError {
 /**
  * Represents an error where deserialization encountered a block that did
  * not have a connection that was defined in the serialized state.
- *
- * @alias Blockly.serialization.exceptions.MissingConnection
  */
 export class MissingConnection extends DeserializationError {
   /**
@@ -49,7 +38,11 @@ export class MissingConnection extends DeserializationError {
    * @param state The state object containing the bad connection.
    * @internal
    */
-  constructor(connection: string, public block: Block, public state: State) {
+  constructor(
+    connection: string,
+    public block: Block,
+    public state: State,
+  ) {
     super(`The block ${block.toDevString()} is missing a(n) ${connection}
 connection`);
   }
@@ -58,8 +51,6 @@ connection`);
 /**
  * Represents an error where deserialization tried to connect two connections
  * that were not compatible.
- *
- * @alias Blockly.serialization.exceptions.BadConnectionCheck
  */
 export class BadConnectionCheck extends DeserializationError {
   /**
@@ -71,8 +62,11 @@ export class BadConnectionCheck extends DeserializationError {
    * @internal
    */
   constructor(
-      reason: string, childConnection: string, public childBlock: Block,
-      public childState: State) {
+    reason: string,
+    childConnection: string,
+    public childBlock: Block,
+    public childState: State,
+  ) {
     super(`The block ${childBlock.toDevString()} could not connect its
 ${childConnection} to its parent, because: ${reason}`);
   }
@@ -83,8 +77,6 @@ ${childConnection} to its parent, because: ${reason}`);
  * was deserializing children of a shadow.
  * This is an error because it is an invariant of Blockly that shadow blocks
  * do not have real children.
- *
- * @alias Blockly.serialization.exceptions.RealChildOfShadow
  */
 export class RealChildOfShadow extends DeserializationError {
   /**
@@ -95,5 +87,26 @@ export class RealChildOfShadow extends DeserializationError {
     super(`Encountered a real block which is defined as a child of a shadow
 block. It is an invariant of Blockly that shadow blocks only have shadow
 children`);
+  }
+}
+
+export class UnregisteredIcon extends DeserializationError {
+  /**
+   * @param iconType The type of the unregistered icon we are attempting to
+   *     deserialize.
+   * @param block The block we are attempting to add the unregistered icon to.
+   * @param state The state object representing the block.
+   */
+  constructor(
+    iconType: string,
+    public block: Block,
+    public state: State,
+  ) {
+    super(
+      `Cannot add an icon of type '${iconType}' to the block ` +
+        `${block.toDevString()}, because there is no icon registered with ` +
+        `type '${iconType}'. Make sure that all of your icons have been ` +
+        `registered.`,
+    );
   }
 }

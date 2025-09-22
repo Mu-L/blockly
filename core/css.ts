@@ -4,15 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Inject Blockly's CSS synchronously.
- *
- * @namespace Blockly.Css
- */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Css');
-
-
+// Former goog.module ID: Blockly.Css
 /** Has CSS already been injected? */
 let injected = false;
 
@@ -21,7 +13,6 @@ let injected = false;
  * components such as fields and the toolbox to store separate CSS.
  *
  * @param cssContent Multiline CSS string or an array of single lines of CSS.
- * @alias Blockly.Css.register
  */
 export function register(cssContent: string) {
   if (injected) {
@@ -40,7 +31,6 @@ export function register(cssContent: string) {
  * @param hasCss If false, don't inject CSS (providing CSS becomes the
  *     document's responsibility).
  * @param pathToMedia Path from page to the Blockly media directory.
- * @alias Blockly.Css.inject
  */
 export function inject(hasCss: boolean, pathToMedia: string) {
   // Only inject the CSS once.
@@ -67,8 +57,6 @@ export function inject(hasCss: boolean, pathToMedia: string) {
 
 /**
  * The CSS content for Blockly.
- *
- * @alias Blockly.Css.content
  */
 let content = `
 .blocklySvg {
@@ -90,42 +78,17 @@ let content = `
   position: relative;
   overflow: hidden;  /* So blocks in drag surface disappear at edges */
   touch-action: none;
-}
-
-.blocklyNonSelectable {
   user-select: none;
-  -ms-user-select: none;
   -webkit-user-select: none;
-}
-
-.blocklyWsDragSurface {
-  display: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-/* Added as a separate rule with multiple classes to make it more specific
-   than a bootstrap rule that selects svg:root. See issue #1275 for context.
-*/
-.blocklyWsDragSurface.blocklyOverflowVisible {
-  overflow: visible;
-}
-
-.blocklyBlockDragSurface {
-  display: none;
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  overflow: visible !important;
-  z-index: 50;  /* Display below toolbox, but above everything else. */
 }
 
 .blocklyBlockCanvas.blocklyCanvasTransitioning,
 .blocklyBubbleCanvas.blocklyCanvasTransitioning {
   transition: transform .5s;
+}
+
+.blocklyEmboss {
+  filter: var(--blocklyEmbossFilter);
 }
 
 .blocklyTooltipDiv {
@@ -155,15 +118,12 @@ let content = `
   box-shadow: 0 0 3px 1px rgba(0,0,0,.3);
 }
 
-.blocklyDropDownDiv.blocklyFocused {
+.blocklyDropDownDiv:focus {
   box-shadow: 0 0 6px 1px rgba(0,0,0,.3);
 }
 
 .blocklyDropDownContent {
-  max-height: 300px;  // @todo: spec for maximum height.
-  overflow: auto;
-  overflow-x: hidden;
-  position: relative;
+  max-height: 300px;  /* @todo: spec for maximum height. */
 }
 
 .blocklyDropDownArrow {
@@ -175,47 +135,14 @@ let content = `
   z-index: -1;
   background-color: inherit;
   border-color: inherit;
-}
-
-.blocklyDropDownButton {
-  display: inline-block;
-  float: left;
-  padding: 0;
-  margin: 4px;
-  border-radius: 4px;
-  outline: none;
-  border: 1px solid;
-  transition: box-shadow .1s;
-  cursor: pointer;
-}
-
-.blocklyArrowTop {
   border-top: 1px solid;
   border-left: 1px solid;
   border-top-left-radius: 4px;
   border-color: inherit;
 }
 
-.blocklyArrowBottom {
-  border-bottom: 1px solid;
-  border-right: 1px solid;
-  border-bottom-right-radius: 4px;
-  border-color: inherit;
-}
-
-.blocklyResizeSE {
-  cursor: se-resize;
-  fill: #aaa;
-}
-
-.blocklyResizeSW {
-  cursor: sw-resize;
-  fill: #aaa;
-}
-
-.blocklyResizeLine {
-  stroke: #515A5A;
-  stroke-width: 1;
+.blocklyHighlighted>.blocklyPath {
+  filter: var(--blocklyEmbossFilter);
 }
 
 .blocklyHighlightedConnectionPath {
@@ -235,40 +162,27 @@ let content = `
 }
 
 .blocklyDraggable {
-  /* backup for browsers (e.g. IE11) that don't support grab */
-  cursor: url("<<<PATH>>>/handopen.cur"), auto;
   cursor: grab;
   cursor: -webkit-grab;
 }
 
-  /* backup for browsers (e.g. IE11) that don't support grabbing */
 .blocklyDragging {
-  /* backup for browsers (e.g. IE11) that don't support grabbing */
-  cursor: url("<<<PATH>>>/handclosed.cur"), auto;
   cursor: grabbing;
   cursor: -webkit-grabbing;
+  /* Drag surface disables events to not block the toolbox, so we have to
+   * reenable them here for the cursor values to work. */
+  pointer-events: auto;
 }
 
   /* Changes cursor on mouse down. Not effective in Firefox because of
      https://bugzilla.mozilla.org/show_bug.cgi?id=771241 */
 .blocklyDraggable:active {
-  /* backup for browsers (e.g. IE11) that don't support grabbing */
-  cursor: url("<<<PATH>>>/handclosed.cur"), auto;
   cursor: grabbing;
   cursor: -webkit-grabbing;
 }
 
-/* Change the cursor on the whole drag surface in case the mouse gets
-   ahead of block during a drag. This way the cursor is still a closed hand.
-  */
-.blocklyBlockDragSurface .blocklyDraggable {
-  /* backup for browsers (e.g. IE11) that don't support grabbing */
-  cursor: url("<<<PATH>>>/handclosed.cur"), auto;
-  cursor: grabbing;
-  cursor: -webkit-grabbing;
-}
-
-.blocklyDragging.blocklyDraggingDelete {
+.blocklyDragging.blocklyDraggingDelete,
+.blocklyDragging.blocklyDraggingDelete .blocklyField {
   cursor: url("<<<PATH>>>/handdelete.cur"), auto;
 }
 
@@ -282,7 +196,8 @@ let content = `
   display: none;
 }
 
-.blocklyDisabled>.blocklyPath {
+.blocklyDisabledPattern>.blocklyPath {
+  fill: var(--blocklyDisabledPattern);
   fill-opacity: .5;
   stroke-opacity: .5;
 }
@@ -299,11 +214,7 @@ let content = `
   stroke: none;
 }
 
-.blocklyMultilineText {
-  font-family: monospace;
-}
-
-.blocklyNonEditableText>text {
+.blocklyNonEditableField>text {
   pointer-events: none;
 }
 
@@ -320,27 +231,18 @@ let content = `
   Don't allow users to select text.  It gets annoying when trying to
   drag a block and selected text moves instead.
 */
-.blocklySvg text,
-.blocklyBlockDragSurface text {
+.blocklySvg text {
   user-select: none;
   -ms-user-select: none;
   -webkit-user-select: none;
   cursor: inherit;
 }
 
-.blocklyHidden {
-  display: none;
-}
-
-.blocklyFieldDropdown:not(.blocklyHidden) {
-  display: block;
-}
-
 .blocklyIconGroup {
   cursor: default;
 }
 
-.blocklyIconGroup:not(:hover),
+.blocklyIconGroup:not(:hover):not(:focus),
 .blocklyIconGroupReadonly {
   opacity: .6;
 }
@@ -358,6 +260,7 @@ let content = `
 .blocklyMinimalBody {
   margin: 0;
   padding: 0;
+  height: 100%;
 }
 
 .blocklyHtmlInput {
@@ -373,11 +276,15 @@ let content = `
   box-sizing: border-box;
 }
 
-/* Edge and IE introduce a close icon when the input value is longer than a
-   certain length. This affects our sizing calculations of the text input.
-   Hiding the close icon to avoid that. */
-.blocklyHtmlInput::-ms-clear {
-  display: none;
+/* Remove the increase and decrease arrows on the field number editor */
+input.blocklyHtmlInput[type=number]::-webkit-inner-spin-button,
+input.blocklyHtmlInput[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
 }
 
 .blocklyMainBackground {
@@ -412,6 +319,7 @@ let content = `
 
 .blocklyScrollbarBackground {
   opacity: 0;
+  pointer-events: none;
 }
 
 .blocklyScrollbarHandle {
@@ -477,6 +385,9 @@ let content = `
 }
 
 .blocklyWidgetDiv .blocklyMenu {
+  user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
   background: #fff;
   border: 1px solid transparent;
   box-shadow: 0 0 3px 1px rgba(0,0,0,.3);
@@ -491,16 +402,21 @@ let content = `
   z-index: 20000;  /* Arbitrary, but some apps depend on it... */
 }
 
-.blocklyWidgetDiv .blocklyMenu.blocklyFocused {
+.blocklyWidgetDiv .blocklyMenu:focus {
   box-shadow: 0 0 6px 1px rgba(0,0,0,.3);
 }
 
 .blocklyDropDownDiv .blocklyMenu {
+  user-select: none;
+  -ms-user-select: none;
+  -webkit-user-select: none;
   background: inherit;  /* Compatibility with gapi, reset from goog-menu */
   border: inherit;  /* Compatibility with gapi, reset from goog-menu */
   font: normal 13px "Helvetica Neue", Helvetica, sans-serif;
   outline: none;
-  position: relative;  /* Compatibility with gapi, reset from goog-menu */
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: 100%;
   z-index: 20000;  /* Arbitrary, but some apps depend on it... */
 }
 
@@ -545,5 +461,51 @@ let content = `
 .blocklyMenuItemRtl .blocklyMenuItemCheckbox {
   float: right;
   margin-right: -24px;
+}
+
+.blocklyMenuSeparator {
+  background-color: #ccc;
+  height: 1px;
+  border: 0;
+  margin-left: 4px;
+  margin-right: 4px;
+}
+
+.blocklyBlockDragSurface, .blocklyAnimationLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  overflow: visible !important;
+  z-index: 80;
+  pointer-events: none;
+}
+
+.blocklyField {
+  cursor: default;
+}
+
+.blocklyInputField {
+  cursor: text;
+}
+
+.blocklyDragging .blocklyField,
+.blocklyDragging .blocklyIconGroup {
+  cursor: grabbing;
+}
+
+.blocklyActiveFocus:is(
+  .blocklyFlyout,
+  .blocklyWorkspace,
+  .blocklyField,
+  .blocklyPath,
+  .blocklyHighlightedConnectionPath,
+  .blocklyComment,
+  .blocklyBubble,
+  .blocklyIconGroup,
+  .blocklyTextarea
+) {
+  outline: none;
 }
 `;

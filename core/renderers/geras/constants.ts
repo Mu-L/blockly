@@ -4,22 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * An object that provides constants for rendering blocks in Geras
- * mode.
- *
- * @class
- */
-import * as goog from '../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.geras.ConstantProvider');
+// Former goog.module ID: Blockly.geras.ConstantProvider
 
 import {ConstantProvider as BaseConstantProvider} from '../common/constants.js';
 
-
 /**
  * An object that provides constants for rendering blocks in Geras mode.
- *
- * @alias Blockly.geras.ConstantProvider
  */
 export class ConstantProvider extends BaseConstantProvider {
   override FIELD_TEXT_BASELINE_CENTER = false;
@@ -35,25 +25,18 @@ export class ConstantProvider extends BaseConstantProvider {
   MAX_BOTTOM_WIDTH = 30;
   override STATEMENT_BOTTOM_SPACER = -this.NOTCH_HEIGHT / 2;
 
-  /**
-   * @internal
-   */
   constructor() {
     super();
   }
 
   override getCSS_(selector: string) {
     return super.getCSS_(selector).concat([
-      /* eslint-disable indent */
-      /* clang-format off */
       // Insertion marker.
       `${selector} .blocklyInsertionMarker>.blocklyPathLight,`,
       `${selector} .blocklyInsertionMarker>.blocklyPathDark {`,
       `fill-opacity: ${this.INSERTION_MARKER_OPACITY};`,
       `stroke: none;`,
       '}',
-      /* clang-format on */
-      /* eslint-enable indent */
     ]);
   }
 }

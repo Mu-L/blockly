@@ -4,27 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The interface for a toolbox.
- *
- * @namespace Blockly.IToolbox
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.IToolbox');
+// Former goog.module ID: Blockly.IToolbox
 
+import type {ToolboxInfo} from '../utils/toolbox.js';
+import type {WorkspaceSvg} from '../workspace_svg.js';
+import type {IFlyout} from './i_flyout.js';
+import type {IFocusableTree} from './i_focusable_tree.js';
 import type {IRegistrable} from './i_registrable.js';
 import type {IToolboxItem} from './i_toolbox_item.js';
-import type {ToolboxInfo} from '../utils/toolbox.js';
-import type {IFlyout} from './i_flyout.js';
-import type {WorkspaceSvg} from '../workspace_svg.js';
-
 
 /**
  * Interface for a toolbox.
- *
- * @alias Blockly.IToolbox
  */
-export interface IToolbox extends IRegistrable {
+export interface IToolbox extends IRegistrable, IFocusableTree {
   /** Initializes the toolbox. */
   init(): void;
 
@@ -54,7 +46,7 @@ export interface IToolbox extends IRegistrable {
    *
    * @returns The toolbox flyout.
    */
-  getFlyout(): IFlyout|null;
+  getFlyout(): IFlyout | null;
 
   /**
    * Gets the workspace for the toolbox.
@@ -103,7 +95,7 @@ export interface IToolbox extends IRegistrable {
   setVisible(isVisible: boolean): void;
 
   /**
-   * Selects the toolbox item by it's position in the list of toolbox items.
+   * Selects the toolbox item by its position in the list of toolbox items.
    *
    * @param position The position of the item to select.
    */
@@ -114,7 +106,15 @@ export interface IToolbox extends IRegistrable {
    *
    * @returns The selected item, or null if no item is currently selected.
    */
-  getSelectedItem(): IToolboxItem|null;
+  getSelectedItem(): IToolboxItem | null;
+
+  /**
+   * Sets the selected item.
+   *
+   * @param item The toolbox item to select, or null to remove the current
+   *     selection.
+   */
+  setSelectedItem(item: IToolboxItem | null): void;
 
   /** Disposes of this toolbox. */
   dispose(): void;

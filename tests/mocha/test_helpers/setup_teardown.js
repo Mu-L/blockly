@@ -4,9 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-goog.declareModuleId('Blockly.test.helpers.setupTeardown');
-
 import * as eventUtils from '../../../build/src/core/events/utils.js';
+import {FocusManager} from '../../../build/src/core/focus_manager.js';
 
 /**
  * Safely disposes of Blockly workspace, logging any errors.
@@ -16,9 +15,9 @@ import * as eventUtils from '../../../build/src/core/events/utils.js';
  */
 export function workspaceTeardown(workspace) {
   try {
-    this.clock.runAll();  // Run all queued setTimeout calls.
+    this.clock.runAll(); // Run all queued setTimeout calls.
     workspace.dispose();
-    this.clock.runAll();  // Run all remaining queued setTimeout calls.
+    this.clock.runAll(); // Run all remaining queued setTimeout calls.
   } catch (e) {
     const testRef = this.currentTest || this.test;
     console.error(testRef.fullTitle() + '\n', e);
@@ -34,7 +33,7 @@ export function workspaceTeardown(workspace) {
  */
 function createEventsFireStubFireImmediately_(clock) {
   const stub = sinon.stub(eventUtils.TEST_ONLY, 'fireInternal');
-  stub.callsFake(function(event) {
+  stub.callsFake(function (event) {
     // Call original method.
     stub.wrappedMethod.call(this, ...arguments);
     // Advance clock forward to run any queued events.
@@ -74,8 +73,11 @@ export function addBlockTypeToCleanup(sharedCleanupObj, blockType) {
  * @private
  */
 function wrapDefineBlocksWithJsonArrayWithCleanup_(sharedCleanupObj) {
-  const stub = sinon.stub(Blockly.common.TEST_ONLY, 'defineBlocksWithJsonArrayInternal');
-  stub.callsFake(function(jsonArray) {
+  const stub = sinon.stub(
+    Blockly.common.TEST_ONLY,
+    'defineBlocksWithJsonArrayInternal',
+  );
+  stub.callsFake(function (jsonArray) {
     if (jsonArray) {
       jsonArray.forEach((jsonBlock) => {
         if (jsonBlock) {
@@ -105,6 +107,8 @@ function wrapDefineBlocksWithJsonArrayWithCleanup_(sharedCleanupObj) {
  *
  * @param {Object<string, boolean>} options Options to enable/disable setup
  *    of certain stubs.
+ * @return {{clock: *}} The fake clock (as part of an object to make refactoring
+ *     easier).
  */
 export function sharedTestSetup(options = {}) {
   this.sharedSetupCalled_ = true;
@@ -121,7 +125,22 @@ export function sharedTestSetup(options = {}) {
   };
   this.blockTypesCleanup_ = this.sharedCleanup.blockTypesCleanup_;
   this.messagesCleanup_ = this.sharedCleanup.messagesCleanup_;
+
+  // Set up FocusManager to run in isolation for this test.
+  this.globalDocumentEventListeners = [];
+  const testState = this;
+  const addDocumentEventListener = function (type, listener) {
+    testState.globalDocumentEventListeners.push({type, listener});
+    document.addEventListener(type, listener);
+  };
+  const specificFocusManager = new FocusManager(addDocumentEventListener);
+  this.oldGetFocusManager = FocusManager.getFocusManager;
+  FocusManager.getFocusManager = () => specificFocusManager;
+
   wrapDefineBlocksWithJsonArrayWithCleanup_(this.sharedCleanup);
+  return {
+    clock: this.clock,
+  };
 }
 
 /**
@@ -140,7 +159,7 @@ export function sharedTestTeardown() {
       workspaceTeardown.call(this, this.workspace);
       this.workspace = null;
     } else {
-      this.clock.runAll();  // Run all queued setTimeout calls.
+      this.clock.runAll(); // Run all queued setTimeout calls.
     }
   } catch (e) {
     console.error(testRef.fullTitle() + '\n', e);
@@ -156,9 +175,12 @@ export function sharedTestTeardown() {
       // (i.e. a previous test added an event to the queue on a timeout that
       // did not use a stubbed clock).
       eventUtils.TEST_ONLY.FIRE_QUEUE.length = 0;
-      console.warn('"' + testRef.fullTitle() +
+      console.warn(
+        '"' +
+          testRef.fullTitle() +
           '" needed cleanup of Blockly.Events.TEST_ONLY.FIRE_QUEUE. This may ' +
-          'indicate leakage from an earlier test');
+          'indicate leakage from an earlier test',
+      );
     }
 
     // Restore all stubbed methods.
@@ -175,11 +197,21 @@ export function sharedTestTeardown() {
     }
 
     Blockly.WidgetDiv.testOnly_setDiv(null);
+
+    // Remove the globally registered listener from FocusManager to avoid state
+    // being shared across test boundaries.
+    for (const registeredListener of this.globalDocumentEventListeners) {
+      const eventType = registeredListener.type;
+      const eventListener = registeredListener.listener;
+      document.removeEventListener(eventType, eventListener);
+    }
+    this.globalDocumentEventListeners = [];
+    FocusManager.getFocusManager = this.oldGetFocusManager;
   }
 }
 
 /**
- * Creates stub for Blockly.utils.genUid that returns the provided id or ids.
+ * Creates stub for Blockly.utils.idGenerator.genUid that returns the provided id or ids.
  * Recommended to also assert that the stub is called the expected number of
  * times.
  * @param {string|!Array<string>} returnIds The return values to use for the
@@ -188,7 +220,7 @@ export function sharedTestTeardown() {
  * @return {!SinonStub} The created stub.
  */
 export function createGenUidStubWithReturns(returnIds) {
-  const stub = sinon.stub(Blockly.utils.idGenerator.TEST_ONLY, "genUid");
+  const stub = sinon.stub(Blockly.utils.idGenerator.TEST_ONLY, 'genUid');
   if (Array.isArray(returnIds)) {
     for (let i = 0; i < returnIds.length; i++) {
       stub.onCall(i).returns(returnIds[i]);

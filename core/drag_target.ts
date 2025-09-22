@@ -10,19 +10,15 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.DragTarget');
+// Former goog.module ID: Blockly.DragTarget
 
 import type {IDragTarget} from './interfaces/i_drag_target.js';
 import type {IDraggable} from './interfaces/i_draggable.js';
 import type {Rect} from './utils/rect.js';
 
-
 /**
  * Abstract class for a component with custom behaviour when a block or bubble
  * is dragged over or dropped on top of it.
- *
- * @alias Blockly.DragTarget
  */
 export class DragTarget implements IDragTarget {
   /**
@@ -43,8 +39,9 @@ export class DragTarget implements IDragTarget {
    *
    * @param _dragElement The block or bubble currently being dragged.
    */
-  onDragEnter(_dragElement: IDraggable) {}
-  // no-op
+  onDragEnter(_dragElement: IDraggable) {
+    // no-op
+  }
 
   /**
    * Handles when a cursor with a block or bubble is dragged over this drag
@@ -52,24 +49,27 @@ export class DragTarget implements IDragTarget {
    *
    * @param _dragElement The block or bubble currently being dragged.
    */
-  onDragOver(_dragElement: IDraggable) {}
-  // no-op
+  onDragOver(_dragElement: IDraggable) {
+    // no-op
+  }
 
   /**
    * Handles when a cursor with a block or bubble exits this drag target.
    *
    * @param _dragElement The block or bubble currently being dragged.
    */
-  onDragExit(_dragElement: IDraggable) {}
-  // no-op
+  onDragExit(_dragElement: IDraggable) {
+    // no-op
+  }
   /**
    * Handles when a block or bubble is dropped on this component.
    * Should not handle delete here.
    *
    * @param _dragElement The block or bubble currently being dragged.
    */
-  onDrop(_dragElement: IDraggable) {}
-  // no-op
+  onDrop(_dragElement: IDraggable) {
+    // no-op
+  }
 
   /**
    * Returns the bounding rectangle of the drag target area in pixel units
@@ -78,7 +78,7 @@ export class DragTarget implements IDragTarget {
    * @returns The component's bounding box. Null if drag target area should be
    *     ignored.
    */
-  getClientRect(): Rect|null {
+  getClientRect(): Rect | null {
     return null;
   }
 

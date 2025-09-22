@@ -1,14 +1,11 @@
-/* eslint-disable valid-jsdoc */
 /**
  * @license
  * Copyright 2020 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
 
-goog.declareModuleId('Blockly.test.helpers.codeGeneration');
-
+import {assert} from '../../../node_modules/chai/index.js';
 import {runTestSuites} from './common.js';
-
 
 /**
  * Code generation test case configuration.
@@ -55,7 +52,7 @@ export class CodeGenerationTestSuite {
    */
   constructor() {
     /**
-     * @type {!Blockly.Generator} The generator to use for running test cases.
+     * @type {!Blockly.CodeGenerator} The generator to use for running test cases.
      */
     this.generator;
   }
@@ -64,14 +61,14 @@ export class CodeGenerationTestSuite {
 /**
  * Returns mocha test callback for code generation based on provided
  *    generator.
- * @param {!Blockly.Generator} generator The generator to use in test.
+ * @param {!Blockly.CodeGenerator} generator The generator to use in test.
  * @return {function(!CodeGenerationTestCase):!Function} Function that
  *    returns mocha test callback based on test case.
  * @private
  */
 const createCodeGenerationTestFn_ = (generator) => {
   return (testCase) => {
-    return function() {
+    return function () {
       const block = testCase.createBlock(this.workspace);
       let code;
       let innerOrder;
@@ -85,12 +82,14 @@ const createCodeGenerationTestFn_ = (generator) => {
           code = code[0];
         }
       }
-      const assertFunc = (typeof testCase.expectedCode === 'string') ?
-          chai.assert.equal : chai.assert.match;
+      const assertFunc =
+        typeof testCase.expectedCode === 'string' ? assert.equal : assert.match;
       assertFunc(code, testCase.expectedCode);
-      if (!testCase.useWorkspaceToCode &&
-          testCase.expectedInnerOrder !== undefined) {
-        chai.assert.equal(innerOrder, testCase.expectedInnerOrder);
+      if (
+        !testCase.useWorkspaceToCode &&
+        testCase.expectedInnerOrder !== undefined
+      ) {
+        assert.equal(innerOrder, testCase.expectedInnerOrder);
       }
     };
   };

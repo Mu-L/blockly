@@ -9,25 +9,29 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.Selected');
+// Former goog.module ID: Blockly.Events.Selected
 
 import * as registry from '../registry.js';
+import type {Workspace} from '../workspace.js';
 import {AbstractEventJson} from './events_abstract.js';
-
 import {UiBase} from './events_ui_base.js';
-import * as eventUtils from './utils.js';
-
+import {EventType} from './type.js';
 
 /**
  * Class for a selected event.
- *
- * @alias Blockly.Events.Selected
+ * Notifies listeners that a new element has been selected.
  */
 export class Selected extends UiBase {
+  /** The id of the last selected selectable element. */
   oldElementId?: string;
+
+  /**
+   * The id of the newly selected selectable element,
+   * or undefined if unselected.
+   */
   newElementId?: string;
-  override type = eventUtils.SELECTED;
+
+  override type = EventType.SELECTED;
 
   /**
    * @param opt_oldElementId The ID of the previously selected element. Null if
@@ -38,14 +42,13 @@ export class Selected extends UiBase {
    *    Null if no element previously selected. Undefined for a blank event.
    */
   constructor(
-      opt_oldElementId?: string|null, opt_newElementId?: string|null,
-      opt_workspaceId?: string) {
+    opt_oldElementId?: string | null,
+    opt_newElementId?: string | null,
+    opt_workspaceId?: string,
+  ) {
     super(opt_workspaceId);
 
-    /** The id of the last selected element. */
     this.oldElementId = opt_oldElementId ?? undefined;
-
-    /** The id of the selected element. */
     this.newElementId = opt_newElementId ?? undefined;
   }
 
@@ -62,14 +65,27 @@ export class Selected extends UiBase {
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of Selected, but we can't specify that due to the fact that parameters
+   *     to static methods in subclasses must be supertypes of parameters to
+   *     static methods in superclasses.
+   * @internal
    */
-  override fromJson(json: SelectedJson) {
-    super.fromJson(json);
-    this.oldElementId = json['oldElementId'];
-    this.newElementId = json['newElementId'];
+  static fromJson(
+    json: SelectedJson,
+    workspace: Workspace,
+    event?: any,
+  ): Selected {
+    const newEvent = super.fromJson(
+      json,
+      workspace,
+      event ?? new Selected(),
+    ) as Selected;
+    newEvent.oldElementId = json['oldElementId'];
+    newEvent.newElementId = json['newElementId'];
+    return newEvent;
   }
 }
 
@@ -78,4 +94,4 @@ export interface SelectedJson extends AbstractEventJson {
   newElementId?: string;
 }
 
-registry.register(registry.Type.EVENT, eventUtils.SELECTED, Selected);
+registry.register(registry.Type.EVENT, EventType.SELECTED, Selected);

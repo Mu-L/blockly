@@ -4,24 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The interface for a component that can delete a block or bubble
- * that is dropped on top of it.
- *
- * @namespace Blockly.IDeleteArea
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.IDeleteArea');
+// Former goog.module ID: Blockly.IDeleteArea
 
 import type {IDragTarget} from './i_drag_target.js';
 import type {IDraggable} from './i_draggable.js';
 
-
 /**
  * Interface for a component that can delete a block or bubble that is dropped
  * on top of it.
- *
- * @alias Blockly.IDeleteArea
  */
 export interface IDeleteArea extends IDragTarget {
   /**
@@ -31,9 +21,8 @@ export interface IDeleteArea extends IDragTarget {
    * before onDragEnter/onDragOver/onDragExit.
    *
    * @param element The block or bubble currently being dragged.
-   * @param couldConnect Whether the element could could connect to another.
    * @returns Whether the element provided would be deleted if dropped on this
    *     area.
    */
-  wouldDelete(element: IDraggable, couldConnect: boolean): boolean;
+  wouldDelete(element: IDraggable): boolean;
 }

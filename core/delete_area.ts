@@ -10,20 +10,17 @@
  *
  * @class
  */
-import * as goog from '../closure/goog/goog.js';
-goog.declareModuleId('Blockly.DeleteArea');
+// Former goog.module ID: Blockly.DeleteArea
 
 import {BlockSvg} from './block_svg.js';
 import {DragTarget} from './drag_target.js';
+import {isDeletable} from './interfaces/i_deletable.js';
 import type {IDeleteArea} from './interfaces/i_delete_area.js';
 import type {IDraggable} from './interfaces/i_draggable.js';
-
 
 /**
  * Abstract class for a component that can delete a block or bubble that is
  * dropped on top of it.
- *
- * @alias Blockly.DeleteArea
  */
 export class DeleteArea extends DragTarget implements IDeleteArea {
   /**
@@ -55,17 +52,16 @@ export class DeleteArea extends DragTarget implements IDeleteArea {
    * before onDragEnter/onDragOver/onDragExit.
    *
    * @param element The block or bubble currently being dragged.
-   * @param couldConnect Whether the element could could connect to another.
    * @returns Whether the element provided would be deleted if dropped on this
    *     area.
    */
-  wouldDelete(element: IDraggable, couldConnect: boolean): boolean {
+  wouldDelete(element: IDraggable): boolean {
     if (element instanceof BlockSvg) {
-      const block = (element);
+      const block = element;
       const couldDeleteBlock = !block.getParent() && block.isDeletable();
-      this.updateWouldDelete_(couldDeleteBlock && !couldConnect);
+      this.updateWouldDelete_(couldDeleteBlock);
     } else {
-      this.updateWouldDelete_(element.isDeletable());
+      this.updateWouldDelete_(isDeletable(element) && element.isDeletable());
     }
     return this.wouldDelete_;
   }

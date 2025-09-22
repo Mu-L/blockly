@@ -4,40 +4,23 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Object representing a row that holds one or more inputs on a
- * rendered block.
- *
- * @class
- */
-import * as goog from '../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.blockRendering.InputRow');
+// Former goog.module ID: Blockly.blockRendering.InputRow
 
 import type {ConstantProvider} from '../common/constants.js';
-
-import {ExternalValueInput} from './external_value_input.js';
-import {InputConnection} from './input_connection.js';
 import {Row} from './row.js';
-import {StatementInput} from './statement_input.js';
 import {Types} from './types.js';
-
 
 /**
  * An object containing information about a row that holds one or more inputs.
- *
- * @alias Blockly.blockRendering.InputRow
  */
 export class InputRow extends Row {
   /**
    * The total width of all blocks connected to this row.
-   *
-   * @internal
    */
   connectedBlockWidths = 0;
 
   /**
    * @param constants The rendering constants provider.
-   * @internal
    */
   constructor(constants: ConstantProvider) {
     super(constants);
@@ -46,8 +29,6 @@ export class InputRow extends Row {
 
   /**
    * Inspect all subcomponents and populate all size properties on the row.
-   *
-   * @internal
    */
   override measure() {
     this.width = this.minWidth;
@@ -56,14 +37,15 @@ export class InputRow extends Row {
     for (let i = 0; i < this.elements.length; i++) {
       const elem = this.elements[i];
       this.width += elem.width;
-      if (Types.isInput(elem) && elem instanceof InputConnection) {
-        if (Types.isStatementInput(elem) && elem instanceof StatementInput) {
+      if (Types.isInput(elem)) {
+        if (Types.isStatementInput(elem)) {
           connectedBlockWidths += elem.connectedBlockWidth;
         } else if (
-            Types.isExternalInput(elem) && elem instanceof ExternalValueInput &&
-            elem.connectedBlockWidth !== 0) {
+          Types.isExternalInput(elem) &&
+          elem.connectedBlockWidth !== 0
+        ) {
           connectedBlockWidths +=
-              elem.connectedBlockWidth - elem.connectionWidth;
+            elem.connectedBlockWidth - elem.connectionWidth;
         }
       }
       if (!Types.isSpacer(elem)) {

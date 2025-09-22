@@ -4,20 +4,19 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Methods for graphically rendering a block as SVG.
- *
- * @class
- */
-import * as goog from '../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.blockRendering.RenderInfo');
+// Former goog.module ID: Blockly.blockRendering.RenderInfo
 
 import type {BlockSvg} from '../../block_svg.js';
-import {Align, Input} from '../../input.js';
-import {inputTypes} from '../../input_types.js';
+import {Align} from '../../inputs/align.js';
+import {DummyInput} from '../../inputs/dummy_input.js';
+import {EndRowInput} from '../../inputs/end_row_input.js';
+import {Input} from '../../inputs/input.js';
+import {StatementInput} from '../../inputs/statement_input.js';
+import {ValueInput} from '../../inputs/value_input.js';
 import type {RenderedConnection} from '../../rendered_connection.js';
 import type {Measurable} from '../measurables/base.js';
 import {BottomRow} from '../measurables/bottom_row.js';
+import {Connection} from '../measurables/connection.js';
 import {ExternalValueInput} from '../measurables/external_value_input.js';
 import {Field} from '../measurables/field.js';
 import {Hat} from '../measurables/hat.js';
@@ -33,13 +32,11 @@ import {RoundCorner} from '../measurables/round_corner.js';
 import type {Row} from '../measurables/row.js';
 import {SpacerRow} from '../measurables/spacer_row.js';
 import {SquareCorner} from '../measurables/square_corner.js';
-import {StatementInput} from '../measurables/statement_input.js';
+import {StatementInput as StatementInputMeasurable} from '../measurables/statement_input.js';
 import {TopRow} from '../measurables/top_row.js';
 import {Types} from '../measurables/types.js';
-
 import type {ConstantProvider} from './constants.js';
 import type {Renderer} from './renderer.js';
-
 
 /**
  * An object containing all sizing information needed to draw this block.
@@ -47,13 +44,11 @@ import type {Renderer} from './renderer.js';
  * This measure pass does not propagate changes to the block (although fields
  * may choose to rerender when getSize() is called).  However, calling it
  * repeatedly may be expensive.
- *
- * @alias Blockly.blockRendering.RenderInfo
  */
 export class RenderInfo {
   block_: BlockSvg;
   protected constants_: ConstantProvider;
-  outputConnection: OutputConnection|null;
+  outputConnection: OutputConnection | null;
   isInline: boolean;
   isCollapsed: boolean;
   isInsertionMarker: boolean;
@@ -81,8 +76,6 @@ export class RenderInfo {
   /** An array of input rows on the block. */
   inputRows: InputRow[] = [];
 
-  /** An array of measurable objects containing hidden icons. */
-  hiddenIcons: Icon[] = [];
   topRow: TopRow;
   bottomRow: BottomRow;
 
@@ -94,7 +87,6 @@ export class RenderInfo {
   /**
    * @param renderer The renderer in use.
    * @param block The block to measure.
-   * @internal
    */
   constructor(renderer: Renderer, block: BlockSvg) {
     this.renderer_ = renderer;
@@ -108,9 +100,9 @@ export class RenderInfo {
      * A measurable representing the output connection if the block has one.
      * Otherwise null.
      */
-    this.outputConnection = block.outputConnection ?
-        new OutputConnection(this.constants_, block.outputConnection) :
-        null;
+    this.outputConnection = block.outputConnection
+      ? new OutputConnection(this.constants_, block.outputConnection)
+      : null;
 
     /**
      * Whether the block should be rendered as a single line, either because
@@ -145,21 +137,17 @@ export class RenderInfo {
    * Get the block renderer in use.
    *
    * @returns The block renderer in use.
-   * @internal
    */
   getRenderer(): Renderer {
     return this.renderer_;
   }
 
   /**
-   * Populate and return an object containing all sizing information needed to
-   * draw this block.
+   * Populate this object with all sizing information needed to draw the block.
    *
    * This measure pass does not propagate changes to the block (although fields
    * may choose to rerender when getSize() is called).  However, calling it
    * repeatedly may be expensive.
-   *
-   * @internal
    */
   measure() {
     this.createRows_();
@@ -182,11 +170,9 @@ export class RenderInfo {
 
     // Icons always go on the first row, before anything else.
     const icons = this.block_.getIcons();
-    for (let i = 0, icon; icon = icons[i]; i++) {
+    for (let i = 0, icon; (icon = icons[i]); i++) {
       const iconInfo = new Icon(this.constants_, icon);
-      if (this.isCollapsed && icon.collapseHidden) {
-        this.hiddenIcons.push(iconInfo);
-      } else {
+      if (!this.isCollapsed || icon.isShownWhenCollapsed()) {
         activeRow.elements.push(iconInfo);
       }
     }
@@ -194,7 +180,7 @@ export class RenderInfo {
     let lastInput = undefined;
     // Loop across all of the inputs on the block, creating objects for anything
     // that needs to be rendered and breaking the block up into visual rows.
-    for (let i = 0, input; input = this.block_.inputList[i]; i++) {
+    for (let i = 0, input; (input = this.block_.inputList[i]); i++) {
       if (!input.isVisible()) {
         continue;
       }
@@ -206,7 +192,7 @@ export class RenderInfo {
       }
 
       // All of the fields in an input go on the same row.
-      for (let j = 0, field; field = input.fieldRow[j]; j++) {
+      for (let j = 0, field; (field = input.fieldRow[j]); j++) {
         activeRow.elements.push(new Field(this.constants_, field, input));
       }
       this.addInput_(input, activeRow);
@@ -227,66 +213,68 @@ export class RenderInfo {
 
   /**
    * Create all non-spacer elements that belong on the top row.
-   *
-   * @internal
    */
-  populateTopRow_() {
+  protected populateTopRow_() {
     const hasPrevious = !!this.block_.previousConnection;
-    const hasHat = (this.block_.hat ? this.block_.hat === 'cap' :
-                                      this.constants_.ADD_START_HATS) &&
-        !this.outputConnection && !hasPrevious;
+    const hasHat =
+      (this.block_.hat
+        ? this.block_.hat === 'cap'
+        : this.constants_.ADD_START_HATS) &&
+      !this.outputConnection &&
+      !hasPrevious;
 
-    let cornerClass = this.topRow.hasLeftSquareCorner(this.block_) ?
-        SquareCorner :
-        RoundCorner;
+    let cornerClass = this.topRow.hasLeftSquareCorner(this.block_)
+      ? SquareCorner
+      : RoundCorner;
     this.topRow.elements.push(new cornerClass(this.constants_));
 
     if (hasHat) {
       const hat = new Hat(this.constants_);
       this.topRow.elements.push(hat);
-      this.topRow.capline = hat.ascenderHeight;
     } else if (hasPrevious) {
       this.topRow.hasPreviousConnection = true;
       this.topRow.connection = new PreviousConnection(
-          this.constants_,
-          (this.block_.previousConnection as RenderedConnection));
+        this.constants_,
+        this.block_.previousConnection as RenderedConnection,
+      );
       this.topRow.elements.push(this.topRow.connection);
     }
 
-    const precedesStatement = this.block_.inputList.length &&
-        this.block_.inputList[0].type === inputTypes.STATEMENT;
+    const precedesStatement =
+      this.block_.inputList.length &&
+      this.block_.inputList[0] instanceof StatementInput;
 
     // This is the minimum height for the row. If one of its elements has a
     // greater height it will be overwritten in the compute pass.
     if (precedesStatement && !this.block_.isCollapsed()) {
       this.topRow.minHeight =
-          this.constants_.TOP_ROW_PRECEDES_STATEMENT_MIN_HEIGHT;
+        this.constants_.TOP_ROW_PRECEDES_STATEMENT_MIN_HEIGHT;
     } else {
       this.topRow.minHeight = this.constants_.TOP_ROW_MIN_HEIGHT;
     }
 
-    cornerClass = this.topRow.hasRightSquareCorner(this.block_) ? SquareCorner :
-                                                                  RoundCorner;
+    cornerClass = this.topRow.hasRightSquareCorner(this.block_)
+      ? SquareCorner
+      : RoundCorner;
     this.topRow.elements.push(new cornerClass(this.constants_, 'right'));
   }
 
   /**
    * Create all non-spacer elements that belong on the bottom row.
-   *
-   * @internal
    */
-  populateBottomRow_() {
+  protected populateBottomRow_() {
     this.bottomRow.hasNextConnection = !!this.block_.nextConnection;
 
-    const followsStatement = this.block_.inputList.length &&
-        this.block_.inputList[this.block_.inputList.length - 1].type ===
-            inputTypes.STATEMENT;
+    const followsStatement =
+      this.block_.inputList.length &&
+      this.block_.inputList[this.block_.inputList.length - 1] instanceof
+        StatementInput;
 
     // This is the minimum height for the row. If one of its elements has a
     // greater height it will be overwritten in the compute pass.
     if (followsStatement) {
       this.bottomRow.minHeight =
-          this.constants_.BOTTOM_ROW_AFTER_STATEMENT_MIN_HEIGHT;
+        this.constants_.BOTTOM_ROW_AFTER_STATEMENT_MIN_HEIGHT;
     } else {
       this.bottomRow.minHeight = this.constants_.BOTTOM_ROW_MIN_HEIGHT;
     }
@@ -301,7 +289,9 @@ export class RenderInfo {
 
     if (this.bottomRow.hasNextConnection) {
       this.bottomRow.connection = new NextConnection(
-          this.constants_, (this.block_.nextConnection as RenderedConnection));
+        this.constants_,
+        this.block_.nextConnection as RenderedConnection,
+      );
       this.bottomRow.elements.push(this.bottomRow.connection);
     }
 
@@ -323,23 +313,26 @@ export class RenderInfo {
    */
   protected addInput_(input: Input, activeRow: Row) {
     // Non-dummy inputs have visual representations onscreen.
-    if (this.isInline && input.type === inputTypes.VALUE) {
+    if (this.isInline && input instanceof ValueInput) {
       activeRow.elements.push(new InlineInput(this.constants_, input));
       activeRow.hasInlineInput = true;
-    } else if (input.type === inputTypes.STATEMENT) {
-      activeRow.elements.push(new StatementInput(this.constants_, input));
+    } else if (input instanceof StatementInput) {
+      activeRow.elements.push(
+        new StatementInputMeasurable(this.constants_, input),
+      );
       activeRow.hasStatement = true;
-    } else if (input.type === inputTypes.VALUE) {
+    } else if (input instanceof ValueInput) {
       activeRow.elements.push(new ExternalValueInput(this.constants_, input));
       activeRow.hasExternalInput = true;
-    } else if (input.type === inputTypes.DUMMY) {
-      // Dummy inputs have no visual representation, but the information is
-      // still important.
+    } else if (input instanceof DummyInput || input instanceof EndRowInput) {
+      // Dummy and end-row inputs have no visual representation, but the
+      // information is still important.
       activeRow.minHeight = Math.max(
-          activeRow.minHeight,
-          input.getSourceBlock() && input.getSourceBlock()!.isShadow() ?
-              this.constants_.DUMMY_INPUT_SHADOW_MIN_HEIGHT :
-              this.constants_.DUMMY_INPUT_MIN_HEIGHT);
+        activeRow.minHeight,
+        input.getSourceBlock() && input.getSourceBlock()!.isShadow()
+          ? this.constants_.DUMMY_INPUT_SHADOW_MIN_HEIGHT
+          : this.constants_.DUMMY_INPUT_MIN_HEIGHT,
+      );
       activeRow.hasDummyInput = true;
     }
     if (activeRow.align === null) {
@@ -350,23 +343,35 @@ export class RenderInfo {
   /**
    * Decide whether to start a new row between the two Blockly.Inputs.
    *
-   * @param input The first input to consider
-   * @param lastInput The input that follows.
-   * @returns True if the next input should be rendered on a new row.
+   * @param currInput The current input.
+   * @param prevInput The previous input.
+   * @returns True if the current input should be rendered on a new row.
    */
-  protected shouldStartNewRow_(input: Input, lastInput?: Input): boolean {
+  protected shouldStartNewRow_(currInput: Input, prevInput?: Input): boolean {
     // If this is the first input, just add to the existing row.
     // That row is either empty or has some icons in it.
-    if (!lastInput) {
+    if (!prevInput) {
       return false;
     }
-    // A statement input or an input following one always gets a new row.
-    if (input.type === inputTypes.STATEMENT ||
-        lastInput.type === inputTypes.STATEMENT) {
+    // If the previous input was an end-row input, then any following input
+    // should always be rendered on the next row.
+    if (prevInput instanceof EndRowInput) {
       return true;
     }
-    // Value and dummy inputs get new row if inputs are not inlined.
-    if (input.type === inputTypes.VALUE || input.type === inputTypes.DUMMY) {
+    // A statement input or an input following one always gets a new row.
+    if (
+      currInput instanceof StatementInput ||
+      prevInput instanceof StatementInput
+    ) {
+      return true;
+    }
+    // Value inputs, dummy inputs, and any input following an external value
+    // input get a new row if inputs are not inlined.
+    if (
+      currInput instanceof ValueInput ||
+      currInput instanceof DummyInput ||
+      prevInput instanceof ValueInput
+    ) {
       return !this.isInline;
     }
     return false;
@@ -374,14 +379,18 @@ export class RenderInfo {
 
   /** Add horizontal spacing between and around elements within each row. */
   protected addElemSpacing_() {
-    for (let i = 0, row; row = this.rows[i]; i++) {
+    for (let i = 0, row; (row = this.rows[i]); i++) {
       const oldElems = row.elements;
       row.elements = [];
       // No spacing needed before the corner on the top row or the bottom row.
       if (row.startsWithElemSpacer()) {
         // There's a spacer before the first element in the row.
-        row.elements.push(new InRowSpacer(
-            this.constants_, this.getInRowSpacing_(null, oldElems[0])));
+        row.elements.push(
+          new InRowSpacer(
+            this.constants_,
+            this.getInRowSpacing_(null, oldElems[0]),
+          ),
+        );
       }
       if (!oldElems.length) {
         continue;
@@ -394,9 +403,12 @@ export class RenderInfo {
       row.elements.push(oldElems[oldElems.length - 1]);
       if (row.endsWithElemSpacer()) {
         // There's a spacer after the last element in the row.
-        row.elements.push(new InRowSpacer(
+        row.elements.push(
+          new InRowSpacer(
             this.constants_,
-            this.getInRowSpacing_(oldElems[oldElems.length - 1], null)));
+            this.getInRowSpacing_(oldElems[oldElems.length - 1], null),
+          ),
+        );
       }
     }
   }
@@ -410,8 +422,10 @@ export class RenderInfo {
    * @param next The element after the spacer.
    * @returns The size of the spacing between the two elements.
    */
-  protected getInRowSpacing_(prev: Measurable|null, next: Measurable|null):
-      number {
+  protected getInRowSpacing_(
+    prev: Measurable | null,
+    next: Measurable | null,
+  ): number {
     if (!prev) {
       // Statement input padding.
       if (next && Types.isStatementInput(next)) {
@@ -443,6 +457,11 @@ export class RenderInfo {
       }
     }
 
+    // Don't add padding after zero-width fields.
+    if (prev && Types.isField(prev) && prev.width === 0) {
+      return this.constants_.NO_PADDING;
+    }
+
     return this.constants_.MEDIUM_PADDING;
   }
 
@@ -454,23 +473,27 @@ export class RenderInfo {
     let widestStatementRowFields = 0;
     let blockWidth = 0;
     let widestRowWithConnectedBlocks = 0;
-    for (let i = 0, row; row = this.rows[i]; i++) {
+    for (let i = 0, row; (row = this.rows[i]); i++) {
       row.measure();
       blockWidth = Math.max(blockWidth, row.width);
       if (row.hasStatement) {
         const statementInput = row.getLastInput();
         const innerWidth = row.width - (statementInput?.width ?? 0);
-        widestStatementRowFields =
-            Math.max(widestStatementRowFields, innerWidth);
+        widestStatementRowFields = Math.max(
+          widestStatementRowFields,
+          innerWidth,
+        );
       }
-      widestRowWithConnectedBlocks =
-          Math.max(widestRowWithConnectedBlocks, row.widthWithConnectedBlocks);
+      widestRowWithConnectedBlocks = Math.max(
+        widestRowWithConnectedBlocks,
+        row.widthWithConnectedBlocks,
+      );
     }
 
     this.statementEdge = widestStatementRowFields;
     this.width = blockWidth;
 
-    for (let i = 0, row; row = this.rows[i]; i++) {
+    for (let i = 0, row; (row = this.rows[i]); i++) {
       if (row.hasStatement) {
         row.statementEdge = this.statementEdge;
       }
@@ -491,7 +514,7 @@ export class RenderInfo {
    * the sizes of all rows.
    */
   protected alignRowElements_() {
-    for (let i = 0, row; row = this.rows[i]; i++) {
+    for (let i = 0, row; (row = this.rows[i]); i++) {
       if (row.hasStatement) {
         this.alignStatementRow_(row as InputRow);
       } else {
@@ -576,8 +599,10 @@ export class RenderInfo {
     statementInput.width += desiredWidth - currentWidth;
     statementInput.height = Math.max(statementInput.height, row.height);
     row.width += desiredWidth - currentWidth;
-    row.widthWithConnectedBlocks =
-        Math.max(row.width, this.statementEdge + row.connectedBlockWidths);
+    row.widthWithConnectedBlocks = Math.max(
+      row.width,
+      this.statementEdge + row.connectedBlockWidths,
+    );
   }
 
   /** Add spacers between rows and set their sizes. */
@@ -651,20 +676,17 @@ export class RenderInfo {
       return row.yPos + elem.height / 2;
     }
     if (Types.isBottomRow(row)) {
-      const bottomRow = row as BottomRow;
-      const baseline =
-          bottomRow.yPos + bottomRow.height - bottomRow.descenderHeight;
+      const baseline = row.yPos + row.height - row.descenderHeight;
       if (Types.isNextConnection(elem)) {
         return baseline + elem.height / 2;
       }
       return baseline - elem.height / 2;
     }
     if (Types.isTopRow(row)) {
-      const topRow = row as TopRow;
       if (Types.isHat(elem)) {
-        return topRow.capline - elem.height / 2;
+        return row.capline - elem.height / 2;
       }
-      return topRow.capline + elem.height / 2;
+      return row.capline + elem.height / 2;
     }
     return row.yPos + row.height / 2;
   }
@@ -677,7 +699,7 @@ export class RenderInfo {
    */
   protected recordElemPositions_(row: Row) {
     let xCursor = row.xPos;
-    for (let j = 0, elem; elem = row.elements[j]; j++) {
+    for (let j = 0, elem; (elem = row.elements[j]); j++) {
       // Now that row heights are finalized, make spacers use the row height.
       if (Types.isSpacer(elem)) {
         elem.height = row.height;
@@ -698,13 +720,15 @@ export class RenderInfo {
     // accesses and sets properties that already exist on the objects.
     let widestRowWithConnectedBlocks = 0;
     let yCursor = 0;
-    for (let i = 0, row; row = this.rows[i]; i++) {
+    for (let i = 0, row; (row = this.rows[i]); i++) {
       row.yPos = yCursor;
       row.xPos = this.startX;
       yCursor += row.height;
 
-      widestRowWithConnectedBlocks =
-          Math.max(widestRowWithConnectedBlocks, row.widthWithConnectedBlocks);
+      widestRowWithConnectedBlocks = Math.max(
+        widestRowWithConnectedBlocks,
+        row.widthWithConnectedBlocks,
+      );
       this.recordElemPositions_(row);
     }
     if (this.outputConnection && this.block_.nextConnection) {
@@ -712,7 +736,9 @@ export class RenderInfo {
       if (target) {
         // Include width of connected block in value to stack width measurement.
         widestRowWithConnectedBlocks = Math.max(
-            widestRowWithConnectedBlocks, target.getHeightWidth().width);
+          widestRowWithConnectedBlocks,
+          target.getHeightWidth().width,
+        );
       }
     }
 
@@ -721,5 +747,22 @@ export class RenderInfo {
     this.height = yCursor;
     this.startY = this.topRow.capline;
     this.bottomRow.baseline = yCursor - this.bottomRow.descenderHeight;
+  }
+
+  /** Returns the connection measurable associated with the given connection. */
+  getMeasureableForConnection(conn: RenderedConnection): Connection | null {
+    if (this.outputConnection?.connectionModel === conn) {
+      return this.outputConnection;
+    }
+
+    for (const row of this.rows) {
+      for (const elem of row.elements) {
+        if (elem instanceof Connection && elem.connectionModel === conn) {
+          return elem;
+        }
+      }
+    }
+
+    return null;
   }
 }

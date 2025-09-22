@@ -4,39 +4,33 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * Geras renderer.
- *
- * @class
- */
-import * as goog from '../../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.geras.Renderer');
+// Former goog.module ID: Blockly.geras.Renderer
 
 import type {BlockSvg} from '../../block_svg.js';
 import type {BlockStyle, Theme} from '../../theme.js';
 import * as blockRendering from '../common/block_rendering.js';
 import type {RenderInfo as BaseRenderInfo} from '../common/info.js';
 import {Renderer as BaseRenderer} from '../common/renderer.js';
-
 import {ConstantProvider} from './constants.js';
 import {Drawer} from './drawer.js';
 import {HighlightConstantProvider} from './highlight_constants.js';
 import {RenderInfo} from './info.js';
 import {PathObject} from './path_object.js';
 
-
 /**
- * The geras renderer.
+ * The geras renderer. This renderer was designed to be backwards compatible
+ * with pre-2019 Blockly. Newer projects that are not constrained by backwards
+ * compatibility should use thrasos, which is a more modern take on this
+ * renderer.
  *
- * @alias Blockly.geras.Renderer
+ * Geras is the ancient Greek spirit of old age.
  */
 export class Renderer extends BaseRenderer {
   /** The renderer's highlight constant provider. */
-  private highlightConstants_: HighlightConstantProvider|null = null;
+  private highlightConstants: HighlightConstantProvider | null = null;
 
   /**
    * @param name The renderer name.
-   * @internal
    */
   constructor(name: string) {
     super(name);
@@ -45,18 +39,22 @@ export class Renderer extends BaseRenderer {
   /**
    * Initialize the renderer.  Geras has a highlight provider in addition to
    * the normal constant provider.
-   *
-   * @internal
    */
   override init(
-      theme: Theme, opt_rendererOverrides?: {[rendererConstant: string]: any}) {
+    theme: Theme,
+    opt_rendererOverrides?: {[rendererConstant: string]: any},
+  ) {
     super.init(theme, opt_rendererOverrides);
-    this.highlightConstants_ = this.makeHighlightConstants_();
-    this.highlightConstants_.init();
+    this.highlightConstants = this.makeHighlightConstants_();
+    this.highlightConstants.init();
   }
 
-  override refreshDom(svg: SVGElement, theme: Theme) {
-    super.refreshDom(svg, theme);
+  override refreshDom(
+    svg: SVGElement,
+    theme: Theme,
+    injectionDiv: HTMLElement,
+  ) {
+    super.refreshDom(svg, theme, injectionDiv);
     this.getHighlightConstants().init();
   }
 
@@ -82,9 +80,11 @@ export class Renderer extends BaseRenderer {
    *     block.
    * @returns The drawer.
    */
-  protected override makeDrawer_(block: BlockSvg, info: BaseRenderInfo):
-      Drawer {
-    return new Drawer(block, (info as RenderInfo));
+  protected override makeDrawer_(
+    block: BlockSvg,
+    info: BaseRenderInfo,
+  ): Drawer {
+    return new Drawer(block, info as RenderInfo);
   }
 
   /**
@@ -93,11 +93,9 @@ export class Renderer extends BaseRenderer {
    * @param root The root SVG element.
    * @param style The style object to use for colouring.
    * @returns The renderer path object.
-   * @internal
    */
   override makePathObject(root: SVGElement, style: BlockStyle): PathObject {
-    return new PathObject(
-        root, style, (this.getConstants() as ConstantProvider));
+    return new PathObject(root, style, this.getConstants() as ConstantProvider);
   }
 
   /**
@@ -106,7 +104,7 @@ export class Renderer extends BaseRenderer {
    * @returns The highlight constant provider.
    */
   protected makeHighlightConstants_(): HighlightConstantProvider {
-    return new HighlightConstantProvider((this.getConstants()));
+    return new HighlightConstantProvider(this.getConstants());
   }
 
   /**
@@ -114,15 +112,15 @@ export class Renderer extends BaseRenderer {
    * is called, the renderer has already been initialized.
    *
    * @returns The highlight constant provider.
-   * @internal
    */
   getHighlightConstants(): HighlightConstantProvider {
-    if (!this.highlightConstants_) {
+    if (!this.highlightConstants) {
       throw new Error(
-          'Cannot access the highlight constants because init has not ' +
-          'been called');
+        'Cannot access the highlight constants because init has not ' +
+          'been called',
+      );
     }
-    return this.highlightConstants_;
+    return this.highlightConstants;
   }
 }
 

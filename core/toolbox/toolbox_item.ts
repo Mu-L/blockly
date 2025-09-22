@@ -9,27 +9,24 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.ToolboxItem');
+// Former goog.module ID: Blockly.ToolboxItem
 
 import type {ICollapsibleToolboxItem} from '../interfaces/i_collapsible_toolbox_item.js';
+import type {IFocusableTree} from '../interfaces/i_focusable_tree.js';
 import type {IToolbox} from '../interfaces/i_toolbox.js';
 import type {IToolboxItem} from '../interfaces/i_toolbox_item.js';
 import * as idGenerator from '../utils/idgenerator.js';
 import type * as toolbox from '../utils/toolbox.js';
 import type {WorkspaceSvg} from '../workspace_svg.js';
 
-
 /**
  * Class for an item in the toolbox.
- *
- * @alias Blockly.ToolboxItem
  */
 export class ToolboxItem implements IToolboxItem {
   protected id_: string;
-  protected parent_: ICollapsibleToolboxItem|null;
+  protected parent_: ICollapsibleToolboxItem | null;
   protected level_: number;
-  protected toolboxItemDef_: toolbox.ToolboxItemInfo|null;
+  protected toolboxItemDef_: toolbox.ToolboxItemInfo | null;
   protected workspace_: WorkspaceSvg;
   /** The toolbox this category belongs to. */
   protected readonly parentToolbox_: IToolbox;
@@ -41,11 +38,14 @@ export class ToolboxItem implements IToolboxItem {
    *     have a parent.
    */
   constructor(
-      toolboxItemDef: toolbox.ToolboxItemInfo, parentToolbox: IToolbox,
-      opt_parent?: ICollapsibleToolboxItem) {
+    toolboxItemDef: toolbox.ToolboxItemInfo,
+    parentToolbox: IToolbox,
+    opt_parent?: ICollapsibleToolboxItem,
+  ) {
     /** The ID for the category. */
-    this.id_ = (toolboxItemDef as AnyDuringMigration)['toolboxitemid'] ||
-        idGenerator.getNextUniqueId();
+    this.id_ =
+      (toolboxItemDef as AnyDuringMigration)['toolboxitemid'] ||
+      idGenerator.getNextUniqueId();
 
     /** The parent of the category. */
     this.parent_ = opt_parent || null;
@@ -75,7 +75,7 @@ export class ToolboxItem implements IToolboxItem {
    *
    * @returns The div for the toolbox item.
    */
-  getDiv(): Element|null {
+  getDiv(): Element | null {
     return null;
   }
 
@@ -88,7 +88,7 @@ export class ToolboxItem implements IToolboxItem {
    * @returns The HTML element that receives clicks, or null if this item should
    *     not receive clicks.
    */
-  getClickTarget(): Element|null {
+  getClickTarget(): Element | null {
     return null;
   }
 
@@ -107,7 +107,7 @@ export class ToolboxItem implements IToolboxItem {
    * @returns The parent toolbox item, or null if this toolbox item is not
    *     nested.
    */
-  getParent(): ICollapsibleToolboxItem|null {
+  getParent(): ICollapsibleToolboxItem | null {
     return null;
   }
 
@@ -149,5 +149,33 @@ export class ToolboxItem implements IToolboxItem {
    * @param _isVisible True if category should be visible.
    */
   setVisible_(_isVisible: boolean) {}
+
+  /** See IFocusableNode.getFocusableElement. */
+  getFocusableElement(): HTMLElement | SVGElement {
+    const div = this.getDiv();
+    if (!div) {
+      throw Error('Trying to access toolbox item before DOM is initialized.');
+    }
+    if (!(div instanceof HTMLElement)) {
+      throw Error('Toolbox item div is unexpectedly not an HTML element.');
+    }
+    return div as HTMLElement;
+  }
+
+  /** See IFocusableNode.getFocusableTree. */
+  getFocusableTree(): IFocusableTree {
+    return this.parentToolbox_;
+  }
+
+  /** See IFocusableNode.onNodeFocus. */
+  onNodeFocus(): void {}
+
+  /** See IFocusableNode.onNodeBlur. */
+  onNodeBlur(): void {}
+
+  /** See IFocusableNode.canBeFocused. */
+  canBeFocused(): boolean {
+    return true;
+  }
 }
 // nop by default

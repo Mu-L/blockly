@@ -9,26 +9,32 @@
  *
  * @class
  */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.Events.BlockDrag');
+// Former goog.module ID: Blockly.Events.BlockDrag
 
 import type {Block} from '../block.js';
 import * as registry from '../registry.js';
+import {Workspace} from '../workspace.js';
 import {AbstractEventJson} from './events_abstract.js';
 import {UiBase} from './events_ui_base.js';
-import * as eventUtils from './utils.js';
-
+import {EventType} from './type.js';
 
 /**
- * Class for a block drag event.
- *
- * @alias Blockly.Events.BlockDrag
+ * Notifies listeners when a block is being manually dragged/dropped.
  */
 export class BlockDrag extends UiBase {
+  /** The ID of the top-level block being dragged. */
   blockId?: string;
+
+  /** True if this is the start of a drag, false if this is the end of one. */
   isStart?: boolean;
+
+  /**
+   * A list of all of the blocks (i.e. all descendants of the block associated
+   * with the block ID) being dragged.
+   */
   blocks?: Block[];
-  override type = eventUtils.BLOCK_DRAG;
+
+  override type = EventType.BLOCK_DRAG;
 
   /**
    * @param opt_block The top block in the stack that is being dragged.
@@ -44,11 +50,7 @@ export class BlockDrag extends UiBase {
     if (!opt_block) return;
 
     this.blockId = opt_block.id;
-
-    /** Whether this is the start of a block drag. */
     this.isStart = opt_isStart;
-
-    /** The blocks affected by this drag event. */
     this.blocks = opt_blocks;
   }
 
@@ -61,14 +63,15 @@ export class BlockDrag extends UiBase {
     const json = super.toJson() as BlockDragJson;
     if (this.isStart === undefined) {
       throw new Error(
-          'Whether this event is the start of a drag is ' +
-          'undefined. Either pass the value to the constructor, or call ' +
-          'fromJson');
+        'Whether this event is the start of a drag is undefined. ' +
+          'Either pass the value to the constructor, or call fromJson',
+      );
     }
     if (this.blockId === undefined) {
       throw new Error(
-          'The block ID is undefined. Either pass a block to ' +
-          'the constructor, or call fromJson');
+        'The block ID is undefined. Either pass a block to ' +
+          'the constructor, or call fromJson',
+      );
     }
     json['isStart'] = this.isStart;
     json['blockId'] = this.blockId;
@@ -79,15 +82,28 @@ export class BlockDrag extends UiBase {
   }
 
   /**
-   * Decode the JSON event.
+   * Deserializes the JSON event.
    *
-   * @param json JSON representation.
+   * @param event The event to append new properties to. Should be a subclass
+   *     of BlockDrag, but we can't specify that due to the fact that parameters
+   *     to static methods in subclasses must be supertypes of parameters to
+   *     static methods in superclasses..
+   * @internal
    */
-  override fromJson(json: BlockDragJson) {
-    super.fromJson(json);
-    this.isStart = json['isStart'];
-    this.blockId = json['blockId'];
-    this.blocks = json['blocks'];
+  static fromJson(
+    json: BlockDragJson,
+    workspace: Workspace,
+    event?: any,
+  ): BlockDrag {
+    const newEvent = super.fromJson(
+      json,
+      workspace,
+      event ?? new BlockDrag(),
+    ) as BlockDrag;
+    newEvent.isStart = json['isStart'];
+    newEvent.blockId = json['blockId'];
+    newEvent.blocks = json['blocks'];
+    return newEvent;
   }
 }
 
@@ -97,4 +113,4 @@ export interface BlockDragJson extends AbstractEventJson {
   blocks?: Block[];
 }
 
-registry.register(registry.Type.EVENT, eventUtils.BLOCK_DRAG, BlockDrag);
+registry.register(registry.Type.EVENT, EventType.BLOCK_DRAG, BlockDrag);

@@ -4,22 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-/**
- * The interface for a component that is automatically hidden
- * when WorkspaceSvg.hideChaff is called.
- *
- * @namespace Blockly.IAutoHideable
- */
-import * as goog from '../../closure/goog/goog.js';
-goog.declareModuleId('Blockly.IAutoHideable');
+// Former goog.module ID: Blockly.IAutoHideable
 
 import type {IComponent} from './i_component.js';
 
-
 /**
  * Interface for a component that can be automatically hidden.
- *
- * @alias Blockly.IAutoHideable
  */
 export interface IAutoHideable extends IComponent {
   /**
@@ -29,4 +19,9 @@ export interface IAutoHideable extends IComponent {
    *   Flyouts should not be closed if this is true.
    */
   autoHide(onlyClosePopups: boolean): void;
+}
+
+/** Returns true if the given object is autohideable. */
+export function isAutoHideable(obj: any): obj is IAutoHideable {
+  return obj && typeof obj.autoHide === 'function';
 }
